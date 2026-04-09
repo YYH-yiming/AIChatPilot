@@ -1,0 +1,7 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Thu Apr 09 10:56:54 CST 2026
+@default-spring-milestones-https\://repo.spring.io/milestone/.lastUpdated=1775703413220
+https\://repo.maven.apache.org/maven2/.lastUpdated=1775703414327
+https\://repo.spring.io/milestone/.error=Could not transfer artifact software.amazon.awssdk\:aws-sdk-java-pom\:pom\:2.29.12 from/to spring-milestones (https\://repo.spring.io/milestone)\: Transfer failed for https\://repo.spring.io/milestone/software/amazon/awssdk/aws-sdk-java-pom/2.29.12/aws-sdk-java-pom-2.29.12.pom
+https\://s01.oss.sonatype.org/content/repositories/snapshots/.error=
+https\://s01.oss.sonatype.org/content/repositories/snapshots/.lastUpdated=1775703413845

@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: aichatpilot-user
+  cloud:
+    nacos:
+      username: nacos
+      password: nacos
+      discovery:
+        server-addr: localhost:8848
+        enabled: false              # ← 禁用服务注册
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        enabled: false              # ← 禁用配置中心
