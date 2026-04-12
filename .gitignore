@@ -39,3 +39,8 @@ build/
 
 /docs-bak/
 /docs/
+.env
+.env.*
+!.env.local.example
+!.env.dev.example
+!.env.prod.example

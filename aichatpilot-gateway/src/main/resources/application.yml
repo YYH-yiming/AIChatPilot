@@ -1,0 +1,31 @@
+server:
+  port: ${GATEWAY_SERVER_PORT:8080}
+
+spring:
+  application:
+    name: aichatpilot-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:3000}
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:5s}
+      default-filters:
+        - PreserveHostHeader
+
+jwt:
+  secret: ${JWT_SECRET:AIChatPilot-SecretKey-Must-Be-At-Least-32-Bytes!}
+
+logging:
+  level:
+    com.yyh: ${APP_LOG_LEVEL:INFO}

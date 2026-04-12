@@ -1,6 +1,6 @@
 spring:
   application:
-    name: aichatpilot-user
+    name: aichatpilot-gateway
   cloud:
     nacos:
       username: ${NACOS_USERNAME:nacos}

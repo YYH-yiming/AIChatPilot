@@ -1,0 +1,27 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/user/**
+        - id: knowledge-service
+          uri: ${KNOWLEDGE_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/knowledge/**
+        - id: chat-service
+          uri: ${CHAT_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/chat/**
+        - id: agent-service
+          uri: ${AGENT_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/agent/**
+
+logging:
+  level:
+    com.yyh: DEBUG

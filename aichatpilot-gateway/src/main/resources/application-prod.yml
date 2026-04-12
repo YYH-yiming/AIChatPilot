@@ -1,0 +1,24 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://aichatpilot-user
+          predicates:
+            - Path=/api/user/**
+        - id: knowledge-service
+          uri: lb://aichatpilot-knowledge
+          predicates:
+            - Path=/api/knowledge/**
+        - id: chat-service
+          uri: lb://aichatpilot-chat
+          predicates:
+            - Path=/api/chat/**
+        - id: agent-service
+          uri: lb://aichatpilot-agent
+          predicates:
+            - Path=/api/agent/**
+
+logging:
+  level:
+    com.yyh: WARN
