@@ -1,0 +1,13 @@
+package com.yyh.knowledge.service;
+
+import com.yyh.knowledge.dto.ChunkVO;
+import com.yyh.knowledge.dto.DocumentUploadResponse;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+public interface DocumentService {
+    DocumentUploadResponse uploadDocument(Long kbId, MultipartFile file);
+    List<DocumentUploadResponse> listDocuments(Long kbId);
+    List<ChunkVO> listChunks(Long kbId, Long docId);
+}

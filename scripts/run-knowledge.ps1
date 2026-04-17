@@ -13,25 +13,19 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 function Import-EnvFile {
     param([string]$Path)
-
     if (-not (Test-Path $Path)) {
         throw "Env file not found: $Path"
     }
-
     Get-Content $Path | ForEach-Object {
         $line = $_.Trim()
         if (-not $line -or $line.StartsWith("#")) {
             return
         }
-
         $parts = $line.Split("=", 2)
         if ($parts.Count -ne 2) {
             return
         }
-
-        $name = $parts[0].Trim()
-        $value = $parts[1].Trim()
-        [System.Environment]::SetEnvironmentVariable($name, $value, "Process")
+        [System.Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), "Process")
     }
 }
 
@@ -43,7 +37,6 @@ if (-not $SkipEnv) {
     } elseif (-not [System.IO.Path]::IsPathRooted($EnvFile)) {
         $EnvFile = Join-Path $RepoRoot $EnvFile
     }
-
     Import-EnvFile -Path $EnvFile
 }
 
@@ -54,12 +47,11 @@ if (-not $SkipEnv) {
 
 Push-Location $RepoRoot
 try {
-    mvn -pl aichatpilot-user -am -DskipTests install
+    mvn -pl aichatpilot-knowledge -am -DskipTests install
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
-
-    mvn -pl aichatpilot-user spring-boot:run
+    mvn -pl aichatpilot-knowledge spring-boot:run
 }
 finally {
     Pop-Location

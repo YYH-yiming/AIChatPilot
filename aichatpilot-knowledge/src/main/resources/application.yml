@@ -1,0 +1,77 @@
+server:
+  port: ${KNOWLEDGE_SERVER_PORT:8082}
+
+spring:
+  application:
+    name: aichatpilot-knowledge
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/aichatpilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    type: com.alibaba.druid.pool.DruidDataSource
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+  servlet:
+    multipart:
+      max-file-size: ${KNOWLEDGE_MAX_FILE_SIZE:50MB}
+      max-request-size: ${KNOWLEDGE_MAX_REQUEST_SIZE:50MB}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+knife4j:
+  enable: ${KNIFE4J_ENABLE:true}
+  setting:
+    language: zh_cn
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  bucket-name: ${MINIO_BUCKET_NAME:aichatpilot-docs}
+
+embedding:
+  api-url: ${EMBEDDING_API_URL:https://api.siliconflow.cn/v1/embeddings}
+  api-key: ${EMBEDDING_API_KEY:}
+  model: ${EMBEDDING_MODEL:BAAI/bge-large-zh-v1.5}
+
+milvus:
+  host: ${MILVUS_HOST:localhost}
+  port: ${MILVUS_PORT:19530}
+  username: ${MILVUS_USERNAME:}
+  password: ${MILVUS_PASSWORD:}
+  database: ${MILVUS_DATABASE:default}
+
+knowledge:
+  chunk:
+    strategy: ${KNOWLEDGE_CHUNK_STRATEGY:fixed}
+    size: ${KNOWLEDGE_CHUNK_SIZE:1000}
+    overlap: ${KNOWLEDGE_CHUNK_OVERLAP:100}
+  retrieval:
+    top-k: ${KNOWLEDGE_RETRIEVAL_TOP_K:5}
+    rrf-k: ${KNOWLEDGE_RETRIEVAL_RRF_K:60}
+    index-on-upload: ${KNOWLEDGE_RETRIEVAL_INDEX_ON_UPLOAD:true}
+    fail-on-index-error: ${KNOWLEDGE_RETRIEVAL_FAIL_ON_INDEX_ERROR:false}
+    dense-enabled: ${KNOWLEDGE_RETRIEVAL_DENSE_ENABLED:true}
+    sparse-enabled: ${KNOWLEDGE_RETRIEVAL_SPARSE_ENABLED:true}
+
+logging:
+  level:
+    com.yyh: ${APP_LOG_LEVEL:INFO}

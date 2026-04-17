@@ -44,3 +44,4 @@ build/
 !.env.local.example
 !.env.dev.example
 !.env.prod.example
+/.m2/

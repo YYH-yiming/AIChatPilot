@@ -6,6 +6,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
@@ -31,7 +33,9 @@ function Import-EnvFile {
 
 if (-not $SkipEnv) {
     if (-not $EnvFile) {
-        $EnvFile = Join-Path $RepoRoot ".env.$Profile.example"
+        $preferredEnv = Join-Path $RepoRoot ".env.$Profile"
+        $fallbackEnv = Join-Path $RepoRoot ".env.$Profile.example"
+        $EnvFile = if (Test-Path $preferredEnv) { $preferredEnv } else { $fallbackEnv }
     } elseif (-not [System.IO.Path]::IsPathRooted($EnvFile)) {
         $EnvFile = Join-Path $RepoRoot $EnvFile
     }
@@ -40,6 +44,7 @@ if (-not $SkipEnv) {
 
 [System.Environment]::SetEnvironmentVariable("SERVER_PORT", $null, "Process")
 [System.Environment]::SetEnvironmentVariable("GATEWAY_PORT", $null, "Process")
+[System.Environment]::SetEnvironmentVariable("JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8", "Process")
 [System.Environment]::SetEnvironmentVariable("SPRING_PROFILES_ACTIVE", $Profile, "Process")
 
 Push-Location $RepoRoot
