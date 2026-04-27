@@ -27,6 +27,18 @@ spring:
     uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
     username: ${ELASTICSEARCH_USERNAME:}
     password: ${ELASTICSEARCH_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9095}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:knowledge-document-consumer}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      missing-topics-fatal: false
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
@@ -64,6 +76,11 @@ knowledge:
     strategy: ${KNOWLEDGE_CHUNK_STRATEGY:fixed}
     size: ${KNOWLEDGE_CHUNK_SIZE:1000}
     overlap: ${KNOWLEDGE_CHUNK_OVERLAP:100}
+  async:
+    enabled: ${KNOWLEDGE_ASYNC_ENABLED:true}
+    document-upload-topic: ${KAFKA_TOPIC_DOCUMENT_UPLOAD:knowledge.document.upload}
+    topic-partitions: ${KAFKA_TOPIC_PARTITIONS:1}
+    topic-replicas: ${KAFKA_TOPIC_REPLICAS:1}
   retrieval:
     top-k: ${KNOWLEDGE_RETRIEVAL_TOP_K:5}
     rrf-k: ${KNOWLEDGE_RETRIEVAL_RRF_K:60}

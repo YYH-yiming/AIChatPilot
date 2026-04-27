@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface DocumentService {
     DocumentUploadResponse uploadDocument(Long kbId, MultipartFile file);
+    DocumentUploadResponse getDocument(Long kbId, Long docId);
     List<DocumentUploadResponse> listDocuments(Long kbId);
     List<ChunkVO> listChunks(Long kbId, Long docId);
 }

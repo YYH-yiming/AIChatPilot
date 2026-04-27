@@ -30,10 +30,27 @@ public class DocumentParseServiceImpl implements DocumentParseService {
         }
 
         try (InputStream inputStream = file.getInputStream()) {
+            return parse(file.getOriginalFilename(), inputStream);
+        } catch (Exception ex) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "文档解析失败: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    public String parse(String filename, InputStream inputStream) {
+        if (isPlainText(filename)) {
+            try {
+                return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            } catch (Exception ex) {
+                throw new BusinessException(ResultCode.INTERNAL_ERROR, "文本文件读取失败: " + ex.getMessage());
+            }
+        }
+
+        try {
             AutoDetectParser parser = new AutoDetectParser();
             ContentHandler handler = new BodyContentHandler(-1);
             Metadata metadata = new Metadata();
-            metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, file.getOriginalFilename());
+            metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, filename);
             parser.parse(inputStream, handler, metadata, new ParseContext());
             return handler.toString();
         } catch (Exception ex) {

@@ -15,5 +15,6 @@ public class DocumentUploadResponse {
     private Integer parseStatus;
     private Integer chunkCount;
     private String errorMsg;
+    private String message;
     private LocalDateTime createdAt;
 }

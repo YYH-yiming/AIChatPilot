@@ -1,7 +1,7 @@
 param(
     [string]$Profile = "local",
     [string]$EnvFile = "",
-    [string[]]$Services = @("es", "minio", "user", "knowledge", "gateway"),
+    [string[]]$Services = @("kafka", "es", "minio", "user", "knowledge", "gateway"),
     [switch]$SkipEnv,
     [int]$InfraDelaySeconds = 4,
     [int]$ServiceDelaySeconds = 8
@@ -23,6 +23,11 @@ if (-not $EnvFile) {
 }
 
 $serviceDefinitions = [ordered]@{
+    kafka = @{
+        script = Join-Path $PSScriptRoot "run-kafka-local.ps1"
+        delay  = $InfraDelaySeconds
+        title  = "AIChatPilot-Kafka"
+    }
     es = @{
         script = Join-Path $PSScriptRoot "run-elasticsearch-local.ps1"
         delay  = $InfraDelaySeconds
@@ -110,6 +115,7 @@ Write-Host "EnvFile : $EnvFile"
 Write-Host "Services: $($Services -join ', ')"
 Write-Host ""
 Write-Host "Default local endpoints:"
+Write-Host "  Kafka    localhost:9095"
 Write-Host "  ES       http://localhost:9200"
 Write-Host "  MinIO    http://localhost:9000"
 Write-Host "  User     http://localhost:8081"

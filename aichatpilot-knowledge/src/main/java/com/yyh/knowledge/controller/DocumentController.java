@@ -33,6 +33,13 @@ public class DocumentController {
         return Result.success(documentService.listDocuments(kbId));
     }
 
+    @Operation(summary = "查询文档处理状态")
+    @GetMapping("/{docId}")
+    public Result<DocumentUploadResponse> get(@PathVariable Long kbId,
+                                              @PathVariable Long docId) {
+        return Result.success(documentService.getDocument(kbId, docId));
+    }
+
     @Operation(summary = "查询文档切片列表")
     @GetMapping("/{docId}/chunks")
     public Result<List<ChunkVO>> chunks(@PathVariable Long kbId,
