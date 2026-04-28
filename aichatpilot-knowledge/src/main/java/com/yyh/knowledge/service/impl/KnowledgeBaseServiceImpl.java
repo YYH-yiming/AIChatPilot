@@ -3,6 +3,8 @@ package com.yyh.knowledge.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yyh.common.exception.BusinessException;
 import com.yyh.common.result.ResultCode;
+import com.yyh.knowledge.dto.KnowledgeAskRequest;
+import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeBaseCreateRequest;
 import com.yyh.knowledge.dto.KnowledgeSearchHitVO;
 import com.yyh.knowledge.dto.KnowledgeSearchRequest;
@@ -15,6 +17,7 @@ import com.yyh.knowledge.mapper.KnowledgeDocumentMapper;
 import com.yyh.knowledge.minio.MinioService;
 import com.yyh.knowledge.search.RetrievalService;
 import com.yyh.knowledge.service.KnowledgeBaseService;
+import com.yyh.knowledge.service.RagService;
 import com.yyh.knowledge.support.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -32,6 +35,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final KnowledgeChunkMapper knowledgeChunkMapper;
     private final MinioService minioService;
     private final RetrievalService retrievalService;
+    private final RagService ragService;
 
     @Override
     @Transactional
@@ -95,6 +99,12 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public List<KnowledgeSearchHitVO> search(Long id, KnowledgeSearchRequest request) {
         requireKnowledgeBase(id);
         return retrievalService.search(request.getQuery(), id, request.getTopK());
+    }
+
+    @Override
+    public KnowledgeAskResponse ask(Long id, KnowledgeAskRequest request) {
+        requireKnowledgeBase(id);
+        return ragService.ask(id, request);
     }
 
     private KnowledgeBase requireKnowledgeBase(Long id) {

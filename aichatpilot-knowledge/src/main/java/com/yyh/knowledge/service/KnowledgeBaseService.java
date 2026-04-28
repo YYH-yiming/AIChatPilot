@@ -1,6 +1,8 @@
 package com.yyh.knowledge.service;
 
 import com.yyh.knowledge.dto.KnowledgeBaseCreateRequest;
+import com.yyh.knowledge.dto.KnowledgeAskRequest;
+import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeSearchHitVO;
 import com.yyh.knowledge.dto.KnowledgeSearchRequest;
 import com.yyh.knowledge.dto.KnowledgeBaseVO;
@@ -14,4 +16,5 @@ public interface KnowledgeBaseService {
     KnowledgeBaseVO update(Long id, KnowledgeBaseCreateRequest request);
     void delete(Long id);
     List<KnowledgeSearchHitVO> search(Long id, KnowledgeSearchRequest request);
+    KnowledgeAskResponse ask(Long id, KnowledgeAskRequest request);
 }

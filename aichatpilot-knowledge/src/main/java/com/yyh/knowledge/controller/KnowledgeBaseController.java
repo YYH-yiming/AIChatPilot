@@ -1,6 +1,8 @@
 package com.yyh.knowledge.controller;
 
 import com.yyh.common.result.Result;
+import com.yyh.knowledge.dto.KnowledgeAskRequest;
+import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeBaseCreateRequest;
 import com.yyh.knowledge.dto.KnowledgeSearchHitVO;
 import com.yyh.knowledge.dto.KnowledgeSearchRequest;
@@ -59,5 +61,12 @@ public class KnowledgeBaseController {
     public Result<List<KnowledgeSearchHitVO>> search(@PathVariable Long id,
                                                      @RequestBody @Valid KnowledgeSearchRequest request) {
         return Result.success(knowledgeBaseService.search(id, request));
+    }
+
+    @Operation(summary = "知识库问答")
+    @PostMapping("/{id}/ask")
+    public Result<KnowledgeAskResponse> ask(@PathVariable Long id,
+                                            @RequestBody @Valid KnowledgeAskRequest request) {
+        return Result.success(knowledgeBaseService.ask(id, request));
     }
 }

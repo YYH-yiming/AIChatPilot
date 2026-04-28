@@ -19,7 +19,7 @@ spring:
     gateway:
       httpclient:
         connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:3000}
-        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:5s}
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:60s}
       default-filters:
         - PreserveHostHeader
 
