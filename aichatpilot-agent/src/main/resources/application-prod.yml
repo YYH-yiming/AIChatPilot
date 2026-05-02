@@ -1,0 +1,6 @@
+knife4j:
+  enable: ${KNIFE4J_ENABLE:false}
+
+logging:
+  level:
+    com.yyh: WARN

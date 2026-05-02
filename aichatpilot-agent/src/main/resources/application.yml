@@ -1,0 +1,66 @@
+server:
+  port: ${AGENT_SERVER_PORT:8083}
+
+spring:
+  application:
+    name: aichatpilot-agent
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/aichatpilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    type: com.alibaba.druid.pool.DruidDataSource
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+knife4j:
+  enable: ${KNIFE4J_ENABLE:true}
+  setting:
+    language: zh_cn
+
+agent:
+  knowledge:
+    service-url: ${AGENT_KNOWLEDGE_SERVICE_URL:${KNOWLEDGE_SERVICE_URL:http://localhost:8082}}
+    faq-kb-id: ${AGENT_FAQ_KB_ID:1}
+    policy-kb-id: ${AGENT_POLICY_KB_ID:2}
+    ask-top-k: ${AGENT_KNOWLEDGE_ASK_TOP_K:5}
+    search-top-k: ${AGENT_KNOWLEDGE_SEARCH_TOP_K:5}
+  memory:
+    enabled: ${AGENT_MEMORY_ENABLED:true}
+    max-messages: ${AGENT_MEMORY_MAX_MESSAGES:8}
+    ttl-hours: ${AGENT_MEMORY_TTL_HOURS:12}
+  router:
+    confidence-threshold: ${AGENT_ROUTER_CONFIDENCE_THRESHOLD:0.65}
+    fallback-intent: ${AGENT_ROUTER_FALLBACK_INTENT:faq}
+  llm:
+    provider: ${AGENT_LLM_PROVIDER:${LLM_PROVIDER:ark}}
+    api-url: ${AGENT_LLM_API_URL:${LLM_API_URL:https://ark.cn-beijing.volces.com/api/v3/chat/completions}}
+    api-key: ${AGENT_LLM_API_KEY:${LLM_API_KEY:}}
+    model: ${AGENT_LLM_MODEL:${LLM_MODEL:}}
+    openai-compatible: ${AGENT_LLM_OPENAI_COMPATIBLE:${LLM_OPENAI_COMPATIBLE:true}}
+    temperature: ${AGENT_LLM_TEMPERATURE:${LLM_TEMPERATURE:0.2}}
+    max-tokens: ${AGENT_LLM_MAX_TOKENS:${LLM_MAX_TOKENS:1024}}
+
+logging:
+  level:
+    com.yyh: ${APP_LOG_LEVEL:INFO}

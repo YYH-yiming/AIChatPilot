@@ -1,36 +1,169 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-This repository is a Maven multi-module Spring Boot project. The root `pom.xml` manages versions and aggregates modules such as `aichatpilot-common`, `aichatpilot-user`, `aichatpilot-gateway`, `aichatpilot-chat`, and `aichatpilot-knowledge`. Java code lives under each module’s `src/main/java`, configuration under `src/main/resources`, and tests under `src/test/java`. Infrastructure assets are in `docker/`, startup helpers in `scripts/`, environment templates in `.env.*.example`, and working guides in `docs/` and `docs-bak/`.
+## 1. 规范定位
 
-## Build, Test, and Development Commands
-- `mvn clean install -DskipTests` — build all modules quickly.
-- `mvn test` — run the full test suite from the repo root.
-- `mvn -pl aichatpilot-user -am spring-boot:run` — start the user service and any required module dependencies.
-- `mvn -pl aichatpilot-user -am compile -DskipTests` — compile one module during focused development.
-- `.\scripts\run-user.ps1`, `.\scripts\run-gateway.ps1`, `.\scripts\run-knowledge.ps1` — start core services with the selected profile and env file.
+本仓库是 `AIChatPilot` 的根级协作规范文件，用于统一后续所有模块的开发方式、文档归档方式和交付标准。
 
-Prefer the scripted startup flow plus `.env.local.example`, `.env.dev.example`, and `.env.prod.example`. Keep local-only instructions aligned with `docs/环境配置与启动规范.md` and related run/test guides.
+从本次整理开始，后续开发按以下优先级执行：
 
-## Coding Style & Naming Conventions
-Use Java 17, 4-space indentation, and standard Spring conventions. Keep package names lowercase under `com.yyh.*`; use `PascalCase` for classes, `camelCase` for fields and methods, and suffix DTOs with `Request` / `Response`. Prefer Lombok where the module already uses it, and keep controller/service/mapper layering explicit. Match existing patterns before introducing new abstractions.
+1. 本文件 `AGENTS.md`
+2. `docs/项目开发规范与模块路线图.md`
+3. `docs/` 下的当前有效运行、学习、测试文档
+4. `docs-bak/` 下的历史设计稿、阶段性笔记、旧版路线文档
 
-When adding a new service module, mirror the current convention used by `user`, `gateway`, and `knowledge`: provide `bootstrap.yml`, `application.yml`, `application-local.yml`, `application-dev.yml`, and `application-prod.yml`, plus matching run scripts where needed.
+如果 `docs-bak/` 与当前代码或 `docs/` 有冲突，以当前代码和 `docs/` 为准，`docs-bak/` 仅作为设计背景、思路来源和历史归档，不再作为直接实施规范。
 
-## Testing Guidelines
-Tests belong in the owning module under `src/test/java`. Use Spring Boot Test / JUnit 5 from `spring-boot-starter-test`. Name test classes `*Test` and keep them focused on one service, controller, or utility. When changing request flow or security logic, add or update at least one targeted test for the touched module before broadening to full-project verification.
+## 2. 项目结构与模块现状
 
-## Commit & Pull Request Guidelines
-Recent commits use short, direct subjects such as `修复鉴权流程` and `update gitignore`. Follow that style: one concise summary line, preferably imperative, and keep unrelated changes out of the same commit. Pull requests should include scope, affected modules, config changes, manual test steps, and screenshots only when UI or API docs behavior changes.
+本仓库是 Maven 多模块 Spring Boot 项目，根 `pom.xml` 统一管理依赖版本与模块聚合。
 
-## Security & Configuration Tips
-Do not commit real secrets, tokens, or environment-specific passwords. Keep JWT, MySQL, Redis, Nacos, and MinIO settings externalized in YAML plus env overrides. Do not hardcode `localhost`, fixed IPs, ports, bucket names, or absolute Windows paths in Java code. Use environment variables for all deploy-sensitive values and keep defaults suitable for local development only.
+当前阶段判断模块进度时，需要同时参考 `docs-bak/AIChatPilot_详细开发步骤.md` 的原始分步顺序。现阶段可将项目理解为：
 
-Keep modules Docker-ready even when developing locally:
-- avoid machine-specific file paths such as `E:\...`
-- avoid relying on manual IDE-only startup settings
-- keep ports configurable through `${...}` placeholders
-- keep service URLs configurable for both direct local access and Nacos-based routing
-- document new dependencies, startup order, and required env vars in `docs/`
+- 已完成前 `1-10` 步中的主要开发内容
+- 其中第 `7` 步“Docker 扩展 / 部署补充规范”没有作为当前主线完成项
+- 因此当前主线完成状态更准确的表述是：
+  - 已完成：第 `1`、`2`、`3`、`4`、`5`、`6`、`8`、`9`、`10` 步主要内容
+  - 未作为当前主线完成项：第 `7` 步
+  - 尚未进入主开发：第 `11` 步及以后
 
-When testing auth flows, verify both protected endpoints and failure responses, not only login success.
+当前模块分层如下：
+
+- `aichatpilot-common`：公共能力模块，已具备统一返回、异常处理、分页 DTO、JWT 工具等基础能力
+- `aichatpilot-gateway`：网关模块，已具备统一路由、JWT 前置校验、跨域配置、本地/开发/生产环境路由区分
+- `aichatpilot-user`：用户模块，已具备注册、登录、JWT 认证、租户管理等基础能力
+- `aichatpilot-knowledge`：知识库模块，已具备知识库 CRUD、文档上传、MinIO 存储、Tika 解析、切片、Kafka 异步处理、Embedding、Milvus/ES 混合检索、RAG 问答
+- `aichatpilot-chat`：当前仍为骨架模块，后续负责会话管理、消息收发、多轮上下文、SSE/WebSocket 流式输出
+- `aichatpilot-agent`：当前仍为骨架模块，后续负责 Router Agent、多 Agent 编排、工具调用、Agent Trace
+- `aichatpilot-analytics`：当前仍为骨架模块，后续负责对话统计、满意度分析、Token/调用成本分析
+- `aichatpilot-mcp-server`：当前仍为骨架模块，后续负责 MCP 工具注册、统一工具暴露、外部能力接入
+
+Java 代码位于各模块的 `src/main/java`，配置文件位于 `src/main/resources`，测试位于 `src/test/java`。基础设施位于 `docker/`，启动脚本位于 `scripts/`，当前有效文档位于 `docs/`，历史材料位于 `docs-bak/`。
+
+## 3. 后续模块开发顺序
+
+后续开发默认按下面顺序推进，除非有新的明确业务优先级调整：
+
+1. `aichatpilot-chat`
+   目标：补齐会话层，承接前端聊天入口，串联 `gateway -> chat -> knowledge/agent`
+2. `aichatpilot-agent`
+   目标：补齐 Router Agent、FAQ Agent、订单/工单/政策/转人工 Agent，实现多 Agent 协作闭环
+3. `aichatpilot-mcp-server`
+   目标：把订单查询、工单处理、知识检索等工具统一收口到 MCP 协议层
+4. `aichatpilot-analytics`
+   目标：消费会话和 Agent 事件，沉淀运营分析、调用分析、质量分析能力
+5. 部署治理与高可用加固
+   目标：补齐监控、链路追踪、限流熔断、灰度发布、容器化部署标准
+
+不要跳过 `chat` 直接重做 `agent`，因为当前知识库已经有同步 RAG 问答，但缺少正式的会话承接层。`chat` 是用户交互入口，补齐它之后，`agent` 和 `analytics` 才有稳定事件源。
+
+同时保留对历史分步顺序的映射，便于后续查档：
+
+1. 第 `11` 步：`aichatpilot-agent`
+2. 第 `12` 步：`aichatpilot-mcp-server`
+3. 第 `13` 步：`aichatpilot-chat`
+4. 第 `14` 步：`aichatpilot-analytics`
+5. 第 `15-16` 步：高并发高可用、监控、部署治理
+
+从实际交付顺序看，后续建议优先做 `chat`，再做 `agent`。这是对“历史步骤顺序”的工程化调整，优先级高于旧文档中的编号顺序。
+
+## 4. 文档归档规则
+
+- `docs/`：当前有效规范、运行指南、测试指南、学习指南、接口说明
+- `docs-bak/`：历史设计方案、阶段性过程文档、旧版路线图、临时记录
+- 新增正式规范、流程、运行说明时，优先放入 `docs/`
+- 废弃但有保留价值的文档移动或沉淀到 `docs-bak/`
+- 修改代码后，如果影响启动方式、配置项、模块边界、接口行为、联调步骤，必须同步更新 `docs/`
+- 不允许代码已经变更，但 `docs/` 仍停留在旧流程
+
+## 5. 配置与环境规范
+
+统一遵守 `local / dev / prod` 三套环境约定。
+
+- 每个可运行服务模块都应提供：
+  - `bootstrap.yml`
+  - `application.yml`
+  - `application-local.yml`
+  - `application-dev.yml`
+  - `application-prod.yml`
+- 当前已经可运行或即将落地的服务模块，应补齐对应启动脚本，例如 `run-user.ps1`、`run-gateway.ps1`、`run-knowledge.ps1`
+- 本地优先通过环境变量和 `.env.*.example` 控制配置，不把真实密钥、账号、服务器地址写进代码库
+- 不允许在 Java 代码中写死：
+  - `localhost`
+  - 固定 IP
+  - 固定端口
+  - Windows 绝对路径
+  - 真实 bucket 名称
+  - 真实 API Key / Token / 数据库密码
+- 所有对部署敏感的内容都必须走 `${...}` 占位符和环境变量覆盖
+- 本地开发也必须保持 Docker-ready，不能依赖 IDE 私有配置才能运行
+
+相关文档以 `docs/环境配置与启动规范.md` 为当前环境规范基线。
+
+## 6. 编码规范
+
+- 使用 Java 17
+- 使用 4 空格缩进
+- 包名统一为 `com.yyh.*`
+- 类名使用 `PascalCase`
+- 字段、方法名使用 `camelCase`
+- 请求/响应 DTO 统一使用 `*Request` / `*Response` / `*VO`
+- Controller / Service / Mapper / Entity / DTO 分层保持明确
+- 先复用 `common` 已有能力，不重复造统一返回、异常、JWT、分页等基础轮子
+- 在已有模块使用 Lombok 的地方继续沿用，但不要为了少写几行代码牺牲可读性
+- 新增抽象前先看现有模式，优先保持与 `user`、`gateway`、`knowledge` 一致
+- 网关负责统一前置鉴权，下游业务服务优先信任网关透传的身份头，不重复复制一套网关级 JWT 逻辑
+- 多租户相关数据必须显式考虑 `tenantId` 边界，不能只做功能不做隔离
+
+## 7. 模块开发约束
+
+新增或完善模块时，默认遵守以下约束：
+
+- `common`：只放公共能力，不放强业务耦合逻辑
+- `gateway`：负责统一入口、路由、前置鉴权、跨域、限流，不承载业务逻辑
+- `user`：负责用户、租户、认证、权限基础能力
+- `knowledge`：负责文档处理、检索、RAG 问答，不承接多轮对话编排
+- `chat`：负责会话生命周期、消息记录、流式输出、上下文窗口管理
+- `agent`：负责意图识别、任务路由、工具调用、Agent 协作
+- `mcp-server`：负责把工具标准化暴露给 Agent 体系
+- `analytics`：负责异步消费、统计分析、报表指标，不侵入主链路同步性能
+
+模块边界不清时，优先看“这个能力是入口层、业务层、编排层、工具层还是分析层”，不要把所有逻辑塞进单个模块。
+
+## 8. 测试与验证规范
+
+测试代码统一放在所属模块的 `src/test/java` 下，使用 Spring Boot Test / JUnit 5。
+
+- 测试类命名使用 `*Test`
+- 修改鉴权逻辑时，至少验证：
+  - 白名单接口
+  - 正常 token
+  - 无 token
+  - 错误 token
+  - 过期 token
+- 修改多租户逻辑时，至少验证跨租户不可见
+- 修改文档处理链路时，至少验证：
+  - 上传成功
+  - 异步状态流转
+  - 解析失败分支
+  - 检索可命中
+- 修改 RAG 链路时，至少验证：
+  - 空检索兜底
+  - 正常 references 返回
+  - 模型调用失败兜底
+- 新功能优先补“受影响模块的定向测试”，再做全项目验证
+
+## 9. 提交与交付规范
+
+- 提交信息保持简洁直接，延续当前仓库风格，如：`完善知识库检索链路`、`修复网关鉴权头透传`
+- 一次提交只做一个主题，避免把无关改动混在一起
+- 影响启动方式、配置结构、接口定义、模块职责时，必须同步更新文档
+- 新模块达到“可继续开发”之前，至少应具备：
+  - 可编译
+  - 配置文件齐全
+  - 启动类齐全
+  - 基本依赖齐全
+  - 最小可验证链路
+
+## 10. 当前执行基线
+
+从现在开始，仓库规范以 `docs/项目开发规范与模块路线图.md` 作为统一展开说明。后续所有代码编写、文档补充、模块推进、测试验收，都应以该文档和本文件为共同基线执行。
