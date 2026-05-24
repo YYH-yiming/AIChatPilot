@@ -11,6 +11,7 @@ public enum ResultCode {
     PARAM_ERROR(400, "参数错误"),
     UNAUTHORIZED(401, "未认证"),
     FORBIDDEN(403, "无权限"),
+    TOO_MANY_REQUESTS(429, "请求过于频繁"),
     NOT_FOUND(404, "资源不存在"),
     INTERNAL_ERROR(500, "系统内部错误");
 

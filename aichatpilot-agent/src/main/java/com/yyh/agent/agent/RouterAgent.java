@@ -34,7 +34,7 @@ public class RouterAgent {
             IntentResult result = parseIntentResult(llmResult.getContent());
             output = llmResult.getContent();
             if (isValid(result)) {
-                recordTrace(request, tokenUsed, "success", null, output, start);
+                recordTrace(request, result.getIntent(), tokenUsed, "success", null, output, start);
                 return result;
             }
         } catch (Exception ignored) {
@@ -42,7 +42,7 @@ public class RouterAgent {
 
         IntentResult fallback = classifyByRule(request.getQuery());
         output = toJsonSafely(fallback);
-        recordTrace(request, tokenUsed, "success", null, output, start);
+        recordTrace(request, fallback.getIntent(), tokenUsed, "success", null, output, start);
         return fallback;
     }
 
@@ -157,14 +157,17 @@ public class RouterAgent {
     }
 
     private void recordTrace(AgentRequest request,
+                             String intent,
                              Integer tokenUsed,
                              String status,
                              String errorMsg,
                              String output,
                              long start) {
         agentTraceService.record(AgentTraceService.TraceRecord.builder()
+                .tenantId(request.getTenantId())
                 .sessionId(request.getSessionId())
                 .agentName("router")
+                .intent(intent)
                 .inputText(request.getQuery())
                 .outputText(output)
                 .toolsCalled(null)

@@ -1,6 +1,7 @@
 package com.yyh.agent.client;
 
 import com.yyh.agent.client.dto.KnowledgeAskClientResponse;
+import com.yyh.agent.client.dto.KnowledgeBaseClientResponse;
 import com.yyh.agent.client.dto.KnowledgeSearchHitClientResponse;
 import com.yyh.agent.config.AgentProperties;
 import com.yyh.agent.support.SecurityUtils;
@@ -44,6 +45,15 @@ public class KnowledgeServiceClient {
                 .body(new ParameterizedTypeReference<>() {
                 });
         return unwrap(result, "知识库检索调用失败");
+    }
+
+    public List<KnowledgeBaseClientResponse> listKnowledgeBases() {
+        Result<List<KnowledgeBaseClientResponse>> result = buildClient().get()
+                .uri(agentProperties.getKnowledge().getServiceUrl() + "/api/knowledge/bases")
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {
+                });
+        return unwrap(result, "查询知识库列表失败");
     }
 
     private RestClient buildClient() {

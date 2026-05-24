@@ -1,5 +1,6 @@
 package com.yyh.knowledge.service.impl;
 
+import com.yyh.knowledge.cache.FaqCacheService;
 import com.yyh.knowledge.dto.KnowledgeAskRequest;
 import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeSearchHitVO;
@@ -32,6 +33,9 @@ class RagServiceImplTest {
     @Mock
     private LlmService llmService;
 
+    @Mock
+    private FaqCacheService faqCacheService;
+
     @InjectMocks
     private RagServiceImpl ragService;
 
@@ -47,6 +51,7 @@ class RagServiceImplTest {
         KnowledgeAskRequest request = new KnowledgeAskRequest();
         request.setQuery("退款政策");
 
+        when(faqCacheService.get(1L, "退款政策", 5)).thenReturn(null);
         when(retrievalService.search("退款政策", 1L, 5)).thenReturn(List.of());
         when(llmService.currentModel()).thenReturn("doubao-test");
 
@@ -56,6 +61,7 @@ class RagServiceImplTest {
         assertFalse(response.getGrounded());
         assertEquals(0, response.getReferenceCount());
         verify(llmService, never()).chat(anyString(), anyString());
+        verify(faqCacheService).put(response);
     }
 
     @Test
@@ -70,6 +76,7 @@ class RagServiceImplTest {
         hit.setSource("hybrid");
         hit.setContent("退款需在7天内提交申请。");
 
+        when(faqCacheService.get(2L, "退款政策", 3)).thenReturn(null);
         when(retrievalService.search("退款政策", 2L, 3)).thenReturn(List.of(hit));
         when(llmService.currentModel()).thenReturn("doubao-test");
         when(llmService.chat(anyString(), anyString())).thenReturn("根据知识库，退款需在7天内提交申请。");
@@ -81,5 +88,27 @@ class RagServiceImplTest {
         assertEquals("根据知识库，退款需在7天内提交申请。", response.getAnswer());
         assertEquals("doubao-test", response.getModel());
         assertEquals(1, response.getReferences().size());
+        verify(faqCacheService).put(response);
+    }
+
+    @Test
+    void shouldReturnCachedAnswerWhenFaqCacheHit() {
+        KnowledgeAskRequest request = new KnowledgeAskRequest();
+        request.setQuery("退款政策");
+
+        KnowledgeAskResponse cached = new KnowledgeAskResponse();
+        cached.setKbId(3L);
+        cached.setQuery("退款政策");
+        cached.setAnswer("缓存答案");
+        cached.setGrounded(true);
+        cached.setReferenceCount(1);
+
+        when(faqCacheService.get(3L, "退款政策", 5)).thenReturn(cached);
+
+        KnowledgeAskResponse response = ragService.ask(3L, request);
+
+        assertEquals("缓存答案", response.getAnswer());
+        verify(retrievalService, never()).search("退款政策", 3L, 5);
+        verify(llmService, never()).chat(anyString(), anyString());
     }
 }

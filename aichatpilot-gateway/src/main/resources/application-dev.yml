@@ -18,6 +18,10 @@ spring:
           uri: lb://aichatpilot-agent
           predicates:
             - Path=/api/agent/**
+        - id: analytics-service
+          uri: lb://aichatpilot-analytics
+          predicates:
+            - Path=/api/analytics/**
 
 logging:
   level:

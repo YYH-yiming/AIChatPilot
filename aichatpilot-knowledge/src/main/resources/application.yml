@@ -101,6 +101,16 @@ knowledge:
     top-k: ${RAG_TOP_K:5}
     empty-answer: ${RAG_EMPTY_ANSWER:我没有在知识库中找到相关信息}
     system-prompt: ${RAG_SYSTEM_PROMPT:}
+  faq-cache:
+    enabled: ${KNOWLEDGE_FAQ_CACHE_ENABLED:true}
+    ttl-minutes: ${KNOWLEDGE_FAQ_CACHE_TTL_MINUTES:30}
+    cache-empty-answer: ${KNOWLEDGE_FAQ_CACHE_EMPTY_ANSWER:true}
+    key-prefix: ${KNOWLEDGE_FAQ_CACHE_KEY_PREFIX:knowledge:faq-cache}
+  upload-lock:
+    enabled: ${KNOWLEDGE_UPLOAD_LOCK_ENABLED:true}
+    upload-lease-seconds: ${KNOWLEDGE_UPLOAD_LOCK_LEASE_SECONDS:60}
+    process-lease-seconds: ${KNOWLEDGE_PROCESS_LOCK_LEASE_SECONDS:600}
+    key-prefix: ${KNOWLEDGE_UPLOAD_LOCK_KEY_PREFIX:knowledge:upload-lock}
 
 
 logging:

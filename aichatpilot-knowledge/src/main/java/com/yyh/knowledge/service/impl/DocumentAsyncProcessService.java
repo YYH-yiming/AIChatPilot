@@ -1,9 +1,12 @@
 package com.yyh.knowledge.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.yyh.knowledge.cache.FaqCacheService;
+import com.yyh.knowledge.config.KnowledgeReliabilityProperties;
 import com.yyh.knowledge.entity.KnowledgeBase;
 import com.yyh.knowledge.entity.KnowledgeChunk;
 import com.yyh.knowledge.entity.KnowledgeDocument;
+import com.yyh.knowledge.lock.DistributedLockService;
 import com.yyh.knowledge.mapper.KnowledgeBaseMapper;
 import com.yyh.knowledge.mapper.KnowledgeChunkMapper;
 import com.yyh.knowledge.mapper.KnowledgeDocumentMapper;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -31,26 +35,38 @@ public class DocumentAsyncProcessService {
     private final DocumentParseService documentParseService;
     private final ChunkService chunkService;
     private final RetrievalService retrievalService;
+    private final FaqCacheService faqCacheService;
+    private final DistributedLockService distributedLockService;
+    private final KnowledgeReliabilityProperties reliabilityProperties;
 
     @Transactional
     public void processUploadedDocument(Long kbId, Long docId) {
+        DistributedLockService.LockHandle lockHandle = distributedLockService.tryLock(
+                "process",
+                kbId + ":" + docId,
+                Duration.ofSeconds(Math.max(reliabilityProperties.getUploadLock().getProcessLeaseSeconds(), 30))
+        );
+        if (!lockHandle.isAcquired()) {
+            log.info("文档处理锁已被占用，跳过重复处理: kbId={}, docId={}", kbId, docId);
+            return;
+        }
         KnowledgeDocument document = knowledgeDocumentMapper.selectById(docId);
-        if (document == null || !kbId.equals(document.getKbId())) {
-            log.warn("忽略不存在的文档异步处理事件: kbId={}, docId={}", kbId, docId);
-            return;
-        }
-        if (document.getParseStatus() != null && document.getParseStatus() == 2) {
-            log.info("文档已处理完成，跳过重复消费: kbId={}, docId={}", kbId, docId);
-            return;
-        }
-
-        KnowledgeBase knowledgeBase = knowledgeBaseMapper.selectById(kbId);
-        if (knowledgeBase == null) {
-            markFailed(document, "知识库不存在");
-            return;
-        }
-
         try {
+            if (document == null || !kbId.equals(document.getKbId())) {
+                log.warn("忽略不存在的文档异步处理事件: kbId={}, docId={}", kbId, docId);
+                return;
+            }
+            if (document.getParseStatus() != null && document.getParseStatus() == 2) {
+                log.info("文档已处理完成，跳过重复消费: kbId={}, docId={}", kbId, docId);
+                return;
+            }
+
+            KnowledgeBase knowledgeBase = knowledgeBaseMapper.selectById(kbId);
+            if (knowledgeBase == null) {
+                markFailed(document, "知识库不存在");
+                return;
+            }
+
             document.setParseStatus(1);
             document.setErrorMsg(null);
             knowledgeDocumentMapper.updateById(document);
@@ -70,6 +86,7 @@ public class DocumentAsyncProcessService {
             document.setErrorMsg(null);
             knowledgeDocumentMapper.updateById(document);
             refreshKnowledgeBaseStats(kbId);
+            faqCacheService.evictKnowledgeBaseCache(kbId);
         } catch (Exception ex) {
             retrievalService.deleteDocumentIndexes(kbId, docId);
             knowledgeChunkMapper.delete(
@@ -77,7 +94,10 @@ public class DocumentAsyncProcessService {
             );
             markFailed(document, ex.getMessage());
             refreshKnowledgeBaseStats(kbId);
+            faqCacheService.evictKnowledgeBaseCache(kbId);
             log.error("文档异步处理失败: kbId={}, docId={}, message={}", kbId, docId, ex.getMessage(), ex);
+        } finally {
+            distributedLockService.unlock(lockHandle);
         }
     }
 

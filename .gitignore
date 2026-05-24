@@ -45,3 +45,6 @@ build/
 !.env.dev.example
 !.env.prod.example
 /.m2/
+
+/.codex-m2
+codex-maven-settings.xml

@@ -20,11 +20,11 @@
 当前阶段判断模块进度时，需要同时参考 `docs-bak/AIChatPilot_详细开发步骤.md` 的原始分步顺序。现阶段可将项目理解为：
 
 - 已完成前 `1-10` 步中的主要开发内容
-- 其中第 `7` 步“Docker 扩展 / 部署补充规范”没有作为当前主线完成项
+- 第 `7` 步“Docker 扩展 / 部署补充规范”没有作为当前主线完成项
+- 另外，`aichatpilot-agent` 与 `aichatpilot-chat` 已经落地并可本机验证
 - 因此当前主线完成状态更准确的表述是：
-  - 已完成：第 `1`、`2`、`3`、`4`、`5`、`6`、`8`、`9`、`10` 步主要内容
-  - 未作为当前主线完成项：第 `7` 步
-  - 尚未进入主开发：第 `11` 步及以后
+  - 已完成：第 `1`、`2`、`3`、`4`、`5`、`6`、`8`、`9`、`10`、`11`、`13` 步主要内容
+  - 未作为当前主线完成项：第 `7`、`12`、`14` 步及以后
 
 当前模块分层如下：
 
@@ -32,8 +32,8 @@
 - `aichatpilot-gateway`：网关模块，已具备统一路由、JWT 前置校验、跨域配置、本地/开发/生产环境路由区分
 - `aichatpilot-user`：用户模块，已具备注册、登录、JWT 认证、租户管理等基础能力
 - `aichatpilot-knowledge`：知识库模块，已具备知识库 CRUD、文档上传、MinIO 存储、Tika 解析、切片、Kafka 异步处理、Embedding、Milvus/ES 混合检索、RAG 问答
-- `aichatpilot-chat`：当前仍为骨架模块，后续负责会话管理、消息收发、多轮上下文、SSE/WebSocket 流式输出
-- `aichatpilot-agent`：当前仍为骨架模块，后续负责 Router Agent、多 Agent 编排、工具调用、Agent Trace
+- `aichatpilot-chat`：已具备会话管理、消息收发、多轮上下文、SSE 流式输出
+- `aichatpilot-agent`：已具备 Router Agent、多 Agent 编排、工具调用、Agent Trace
 - `aichatpilot-analytics`：当前仍为骨架模块，后续负责对话统计、满意度分析、Token/调用成本分析
 - `aichatpilot-mcp-server`：当前仍为骨架模块，后续负责 MCP 工具注册、统一工具暴露、外部能力接入
 
@@ -43,18 +43,14 @@ Java 代码位于各模块的 `src/main/java`，配置文件位于 `src/main/res
 
 后续开发默认按下面顺序推进，除非有新的明确业务优先级调整：
 
-1. `aichatpilot-chat`
-   目标：补齐会话层，承接前端聊天入口，串联 `gateway -> chat -> knowledge/agent`
-2. `aichatpilot-agent`
-   目标：补齐 Router Agent、FAQ Agent、订单/工单/政策/转人工 Agent，实现多 Agent 协作闭环
-3. `aichatpilot-mcp-server`
+1. `aichatpilot-mcp-server`
    目标：把订单查询、工单处理、知识检索等工具统一收口到 MCP 协议层
-4. `aichatpilot-analytics`
+2. `aichatpilot-analytics`
    目标：消费会话和 Agent 事件，沉淀运营分析、调用分析、质量分析能力
-5. 部署治理与高可用加固
+3. 部署治理与高可用加固
    目标：补齐监控、链路追踪、限流熔断、灰度发布、容器化部署标准
 
-不要跳过 `chat` 直接重做 `agent`，因为当前知识库已经有同步 RAG 问答，但缺少正式的会话承接层。`chat` 是用户交互入口，补齐它之后，`agent` 和 `analytics` 才有稳定事件源。
+`chat` 已经补齐后，后续不要再把会话逻辑塞回 `agent`。`chat` 负责入口和消息事件源，`agent` 负责意图路由和工具编排，`mcp-server` 负责工具标准化暴露。
 
 同时保留对历史分步顺序的映射，便于后续查档：
 
@@ -64,7 +60,7 @@ Java 代码位于各模块的 `src/main/java`，配置文件位于 `src/main/res
 4. 第 `14` 步：`aichatpilot-analytics`
 5. 第 `15-16` 步：高并发高可用、监控、部署治理
 
-从实际交付顺序看，后续建议优先做 `chat`，再做 `agent`。这是对“历史步骤顺序”的工程化调整，优先级高于旧文档中的编号顺序。
+从实际交付顺序看，后续建议优先做 `mcp-server`，再做 `analytics`。这是对“历史步骤顺序”的工程化调整，优先级高于旧文档中的编号顺序。
 
 ## 4. 文档归档规则
 

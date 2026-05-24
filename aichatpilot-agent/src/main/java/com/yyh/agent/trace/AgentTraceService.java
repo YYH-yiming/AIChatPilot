@@ -17,6 +17,7 @@ public class AgentTraceService {
 
     private final AgentTraceMapper agentTraceMapper;
     private final ObjectMapper objectMapper;
+    private final AgentAnalyticsEventPublisher agentAnalyticsEventPublisher;
 
     public void record(TraceRecord record) {
         try {
@@ -37,6 +38,7 @@ public class AgentTraceService {
         } catch (Exception ex) {
             log.warn("记录Agent Trace失败: agent={}, message={}", record.getAgentName(), ex.getMessage());
         }
+        agentAnalyticsEventPublisher.publish(record);
     }
 
     private String toJson(Object value) {
@@ -50,9 +52,11 @@ public class AgentTraceService {
     @Data
     @Builder
     public static class TraceRecord {
+        private Long tenantId;
         private Long sessionId;
         private Long messageId;
         private String agentName;
+        private String intent;
         private Long parentTraceId;
         private String inputText;
         private String outputText;

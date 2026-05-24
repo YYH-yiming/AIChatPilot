@@ -1,0 +1,72 @@
+server:
+  port: ${ANALYTICS_SERVER_PORT:8085}
+
+spring:
+  application:
+    name: aichatpilot-analytics
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/aichatpilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    type: com.alibaba.druid.pool.DruidDataSource
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9095}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${ANALYTICS_KAFKA_CONSUMER_GROUP:analytics-event-consumer}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      missing-topics-fatal: false
+  sql:
+    init:
+      mode: ${ANALYTICS_SQL_INIT_MODE:always}
+      schema-locations: classpath:db/analytics-schema.sql
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+knife4j:
+  enable: ${KNIFE4J_ENABLE:true}
+  setting:
+    language: zh_cn
+
+analytics:
+  cache:
+    ttl-minutes: ${ANALYTICS_CACHE_TTL_MINUTES:5}
+  query:
+    default-days: ${ANALYTICS_DEFAULT_DAYS:7}
+    max-days: ${ANALYTICS_MAX_DAYS:30}
+  events:
+    enabled: ${ANALYTICS_EVENTS_ENABLED:true}
+    chat-session-topic: ${KAFKA_TOPIC_ANALYTICS_CHAT_SESSION:analytics.chat.session}
+    chat-message-topic: ${KAFKA_TOPIC_ANALYTICS_CHAT_MESSAGE:analytics.chat.message}
+    agent-trace-topic: ${KAFKA_TOPIC_ANALYTICS_AGENT_TRACE:analytics.agent.trace}
+    topic-partitions: ${ANALYTICS_TOPIC_PARTITIONS:1}
+    topic-replicas: ${ANALYTICS_TOPIC_REPLICAS:1}
+
+logging:
+  level:
+    com.yyh: ${APP_LOG_LEVEL:INFO}

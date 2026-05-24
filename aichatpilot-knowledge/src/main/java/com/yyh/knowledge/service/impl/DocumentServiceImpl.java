@@ -3,12 +3,14 @@ package com.yyh.knowledge.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yyh.common.exception.BusinessException;
 import com.yyh.common.result.ResultCode;
+import com.yyh.knowledge.config.KnowledgeReliabilityProperties;
 import com.yyh.knowledge.dto.ChunkVO;
 import com.yyh.knowledge.dto.DocumentUploadResponse;
 import com.yyh.knowledge.entity.KnowledgeBase;
 import com.yyh.knowledge.entity.KnowledgeChunk;
 import com.yyh.knowledge.entity.KnowledgeDocument;
 import com.yyh.knowledge.kafka.DocumentEventProducer;
+import com.yyh.knowledge.lock.DistributedLockService;
 import com.yyh.knowledge.mapper.KnowledgeBaseMapper;
 import com.yyh.knowledge.mapper.KnowledgeChunkMapper;
 import com.yyh.knowledge.mapper.KnowledgeDocumentMapper;
@@ -25,6 +27,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -37,6 +40,8 @@ public class DocumentServiceImpl implements DocumentService {
     private final MinioService minioService;
     private final DocumentAsyncProcessService documentAsyncProcessService;
     private final ObjectProvider<DocumentEventProducer> documentEventProducerProvider;
+    private final DistributedLockService distributedLockService;
+    private final KnowledgeReliabilityProperties reliabilityProperties;
 
     @Value("${knowledge.async.enabled:true}")
     private boolean asyncEnabled;
@@ -48,39 +53,52 @@ public class DocumentServiceImpl implements DocumentService {
             throw new BusinessException(ResultCode.PARAM_ERROR, "上传文件不能为空");
         }
 
-        KnowledgeBase knowledgeBase = requireKnowledgeBase(kbId);
-        KnowledgeDocument document = new KnowledgeDocument();
-        document.setKbId(kbId);
-        document.setFileName(file.getOriginalFilename());
-        document.setFileSize(file.getSize());
-        document.setFileType(fileType(file.getOriginalFilename()));
-        document.setParseStatus(asyncEnabled ? 0 : 1);
-        document.setChunkCount(0);
-
-        String fileUrl = null;
+        String lockKey = buildUploadLockKey(kbId, file);
+        DistributedLockService.LockHandle lockHandle = distributedLockService.tryLock(
+                "submit",
+                lockKey,
+                Duration.ofSeconds(Math.max(reliabilityProperties.getUploadLock().getUploadLeaseSeconds(), 5))
+        );
+        if (!lockHandle.isAcquired()) {
+            throw new BusinessException(ResultCode.TOO_MANY_REQUESTS, "相同文档正在上传或处理中，请勿重复提交");
+        }
         try {
-            fileUrl = minioService.upload(kbId, file.getOriginalFilename(), file.getInputStream(), file.getSize(), file.getContentType());
-            document.setFileUrl(fileUrl);
-            knowledgeDocumentMapper.insert(document);
-            knowledgeBase.setDocCount(defaultZero(knowledgeBase.getDocCount()) + 1);
-            knowledgeBaseMapper.updateById(knowledgeBase);
-            if (asyncEnabled) {
-                publishDocumentEventAfterCommit(document.getId(), kbId);
-            } else {
-                documentAsyncProcessService.processUploadedDocument(kbId, document.getId());
-                document = knowledgeDocumentMapper.selectById(document.getId());
+            KnowledgeBase knowledgeBase = requireKnowledgeBase(kbId);
+            KnowledgeDocument document = new KnowledgeDocument();
+            document.setKbId(kbId);
+            document.setFileName(file.getOriginalFilename());
+            document.setFileSize(file.getSize());
+            document.setFileType(fileType(file.getOriginalFilename()));
+            document.setParseStatus(asyncEnabled ? 0 : 1);
+            document.setChunkCount(0);
+
+            String fileUrl = null;
+            try {
+                fileUrl = minioService.upload(kbId, file.getOriginalFilename(), file.getInputStream(), file.getSize(), file.getContentType());
+                document.setFileUrl(fileUrl);
+                knowledgeDocumentMapper.insert(document);
+                knowledgeBase.setDocCount(defaultZero(knowledgeBase.getDocCount()) + 1);
+                knowledgeBaseMapper.updateById(knowledgeBase);
+                if (asyncEnabled) {
+                    publishDocumentEventAfterCommit(document.getId(), kbId);
+                } else {
+                    documentAsyncProcessService.processUploadedDocument(kbId, document.getId());
+                    document = knowledgeDocumentMapper.selectById(document.getId());
+                }
+                return toDocumentResponse(document);
+            } catch (Exception ex) {
+                if (document.getId() != null) {
+                    document.setParseStatus(3);
+                    document.setErrorMsg(ex.getMessage());
+                    knowledgeDocumentMapper.updateById(document);
+                }
+                minioService.deleteByUrl(fileUrl);
+                throw ex instanceof BusinessException businessException
+                        ? businessException
+                        : new BusinessException(ResultCode.INTERNAL_ERROR, "文档上传处理失败: " + ex.getMessage());
             }
-            return toDocumentResponse(document);
-        } catch (Exception ex) {
-            if (document.getId() != null) {
-                document.setParseStatus(3);
-                document.setErrorMsg(ex.getMessage());
-                knowledgeDocumentMapper.updateById(document);
-            }
-            minioService.deleteByUrl(fileUrl);
-            throw ex instanceof BusinessException businessException
-                    ? businessException
-                    : new BusinessException(ResultCode.INTERNAL_ERROR, "文档上传处理失败: " + ex.getMessage());
+        } finally {
+            distributedLockService.unlock(lockHandle);
         }
     }
 
@@ -163,6 +181,12 @@ public class DocumentServiceImpl implements DocumentService {
 
     private int defaultZero(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private String buildUploadLockKey(Long kbId, MultipartFile file) {
+        Long tenantId = SecurityUtils.currentTenantId();
+        String fileName = file.getOriginalFilename() == null ? "unknown" : file.getOriginalFilename();
+        return tenantId + ":" + kbId + ":" + fileName + ":" + file.getSize();
     }
 
     private void publishDocumentEventAfterCommit(Long docId, Long kbId) {

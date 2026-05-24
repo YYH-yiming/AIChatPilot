@@ -6,7 +6,7 @@ import com.yyh.agent.config.AgentProperties;
 import com.yyh.agent.dto.AgentRequest;
 import com.yyh.agent.dto.AgentResponse;
 import com.yyh.agent.dto.KnowledgeReference;
-import com.yyh.agent.tool.KnowledgeTool;
+import com.yyh.agent.service.KnowledgeBaseSelector;
 import com.yyh.agent.trace.AgentTraceService;
 import org.springframework.stereotype.Component;
 
@@ -16,26 +16,28 @@ import java.util.List;
 @Component
 public class PolicyAgent extends BaseAgent {
 
-    private final KnowledgeTool knowledgeTool;
+    private final KnowledgeBaseSelector knowledgeBaseSelector;
     private final AgentProperties agentProperties;
 
     public PolicyAgent(AgentTraceService agentTraceService,
-                       KnowledgeTool knowledgeTool,
+                       KnowledgeBaseSelector knowledgeBaseSelector,
                        AgentProperties agentProperties) {
         super(agentTraceService);
-        this.knowledgeTool = knowledgeTool;
+        this.knowledgeBaseSelector = knowledgeBaseSelector;
         this.agentProperties = agentProperties;
     }
 
     @Override
     protected AgentResponse doExecute(AgentRequest request, AgentExecutionContext context) {
-        Long kbId = agentProperties.getKnowledge().getPolicyKbId();
-        context.addTool("knowledge.ask(kbId=" + kbId + ")");
-        KnowledgeAskClientResponse askResponse = knowledgeTool.askKnowledge(
-                request.getQuery(),
-                kbId,
+        KnowledgeBaseSelector.SelectionResult selectionResult = knowledgeBaseSelector.askAcrossKnowledgeBases(
+                request,
+                "policy",
+                agentProperties.getKnowledge().getPolicyKbId(),
                 agentProperties.getKnowledge().getAskTopK()
         );
+        Long kbId = selectionResult.kbId();
+        KnowledgeAskClientResponse askResponse = selectionResult.response();
+        context.addTool("knowledge.ask(kbId=" + kbId + ", strategy=" + selectionResult.strategy() + ")");
         context.addToolResult("knowledgeAsk", askResponse.getReferenceCount());
 
         AgentResponse response = new AgentResponse();

@@ -3,6 +3,7 @@ package com.yyh.knowledge.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yyh.common.exception.BusinessException;
 import com.yyh.common.result.ResultCode;
+import com.yyh.knowledge.cache.FaqCacheService;
 import com.yyh.knowledge.dto.KnowledgeAskRequest;
 import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeBaseCreateRequest;
@@ -36,6 +37,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final MinioService minioService;
     private final RetrievalService retrievalService;
     private final RagService ragService;
+    private final FaqCacheService faqCacheService;
 
     @Override
     @Transactional
@@ -93,6 +95,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         knowledgeDocumentMapper.delete(new LambdaQueryWrapper<KnowledgeDocument>().eq(KnowledgeDocument::getKbId, id));
         knowledgeBaseMapper.deleteById(knowledgeBase.getId());
         retrievalService.deleteKnowledgeBaseIndexes(id);
+        faqCacheService.evictKnowledgeBaseCache(id);
     }
 
     @Override

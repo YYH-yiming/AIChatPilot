@@ -1,0 +1,82 @@
+server:
+  port: ${CHAT_SERVER_PORT:8084}
+
+spring:
+  application:
+    name: aichatpilot-chat
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  cloud:
+    nacos:
+      config:
+        import-check:
+          enabled: false
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/aichatpilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    type: com.alibaba.druid.pool.DruidDataSource
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9095}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  sql:
+    init:
+      mode: ${CHAT_SQL_INIT_MODE:always}
+      schema-locations: classpath:db/chat-schema.sql
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+knife4j:
+  enable: ${KNIFE4J_ENABLE:true}
+  setting:
+    language: zh_cn
+
+chat:
+  knowledge:
+    service-url: ${CHAT_KNOWLEDGE_SERVICE_URL:${KNOWLEDGE_SERVICE_URL:http://localhost:8082}}
+    ask-top-k: ${CHAT_KNOWLEDGE_TOP_K:5}
+  agent:
+    service-url: ${CHAT_AGENT_SERVICE_URL:${AGENT_SERVICE_URL:http://localhost:8083}}
+  context:
+    window-rounds: ${CHAT_CONTEXT_WINDOW_ROUNDS:6}
+    rewrite-enabled: ${CHAT_CONTEXT_REWRITE_ENABLED:true}
+  memory:
+    enabled: ${CHAT_MEMORY_ENABLED:true}
+    max-messages: ${CHAT_MEMORY_MAX_MESSAGES:40}
+    ttl-hours: ${CHAT_MEMORY_TTL_HOURS:12}
+  sse:
+    timeout-ms: ${CHAT_SSE_TIMEOUT_MS:180000}
+  llm:
+    provider: ${CHAT_LLM_PROVIDER:${LLM_PROVIDER:ark}}
+    api-url: ${CHAT_LLM_API_URL:${CHAT_BASE_URL:${LLM_API_URL:https://ark.cn-beijing.volces.com/api/v3/chat/completions}}}
+    api-key: ${CHAT_LLM_API_KEY:${CHAT_API_KEY:${LLM_API_KEY:}}}
+    model: ${CHAT_LLM_MODEL:${CHAT_MODEL:${LLM_MODEL:}}}
+    openai-compatible: ${CHAT_LLM_OPENAI_COMPATIBLE:${LLM_OPENAI_COMPATIBLE:true}}
+    temperature: ${CHAT_LLM_TEMPERATURE:${LLM_TEMPERATURE:0.2}}
+    max-tokens: ${CHAT_LLM_MAX_TOKENS:${LLM_MAX_TOKENS:1024}}
+
+logging:
+  level:
+    com.yyh: ${APP_LOG_LEVEL:INFO}
+
+analytics:
+  events:
+    enabled: ${ANALYTICS_EVENTS_ENABLED:true}
+    chat-session-topic: ${KAFKA_TOPIC_ANALYTICS_CHAT_SESSION:analytics.chat.session}
+    chat-message-topic: ${KAFKA_TOPIC_ANALYTICS_CHAT_MESSAGE:analytics.chat.message}

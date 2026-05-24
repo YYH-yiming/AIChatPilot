@@ -1,7 +1,4 @@
 spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
   cloud:
     gateway:
       routes:
@@ -21,6 +18,10 @@ spring:
           uri: ${AGENT_SERVICE_URL:http://localhost:8083}
           predicates:
             - Path=/api/agent/**
+        - id: analytics-service
+          uri: ${ANALYTICS_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/analytics/**
 
 logging:
   level:

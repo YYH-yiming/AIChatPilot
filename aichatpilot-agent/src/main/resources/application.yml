@@ -24,6 +24,11 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: ${REDIS_DATABASE:0}
       timeout: ${REDIS_TIMEOUT:3000ms}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9095}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
@@ -60,7 +65,25 @@ agent:
     openai-compatible: ${AGENT_LLM_OPENAI_COMPATIBLE:${LLM_OPENAI_COMPATIBLE:true}}
     temperature: ${AGENT_LLM_TEMPERATURE:${LLM_TEMPERATURE:0.2}}
     max-tokens: ${AGENT_LLM_MAX_TOKENS:${LLM_MAX_TOKENS:1024}}
+    connect-timeout-ms: ${AGENT_LLM_CONNECT_TIMEOUT_MS:${LLM_CONNECT_TIMEOUT_MS:5000}}
+    read-timeout-ms: ${AGENT_LLM_READ_TIMEOUT_MS:${LLM_READ_TIMEOUT_MS:30000}}
+    fallbacks:
+      - enabled: ${AGENT_LLM_FALLBACK1_ENABLED:false}
+        name: ${AGENT_LLM_FALLBACK1_PROVIDER:${LLM_FALLBACK1_PROVIDER:siliconflow}}
+        api-url: ${AGENT_LLM_FALLBACK1_API_URL:${LLM_FALLBACK1_API_URL:https://api.siliconflow.cn/v1/chat/completions}}
+        api-key: ${AGENT_LLM_FALLBACK1_API_KEY:${LLM_FALLBACK1_API_KEY:}}
+        model: ${AGENT_LLM_FALLBACK1_MODEL:${LLM_FALLBACK1_MODEL:}}
+        openai-compatible: ${AGENT_LLM_FALLBACK1_OPENAI_COMPATIBLE:${LLM_FALLBACK1_OPENAI_COMPATIBLE:true}}
+        temperature: ${AGENT_LLM_FALLBACK1_TEMPERATURE:${LLM_FALLBACK1_TEMPERATURE:0.2}}
+        max-tokens: ${AGENT_LLM_FALLBACK1_MAX_TOKENS:${LLM_FALLBACK1_MAX_TOKENS:1024}}
+        connect-timeout-ms: ${AGENT_LLM_FALLBACK1_CONNECT_TIMEOUT_MS:${LLM_FALLBACK1_CONNECT_TIMEOUT_MS:5000}}
+        read-timeout-ms: ${AGENT_LLM_FALLBACK1_READ_TIMEOUT_MS:${LLM_FALLBACK1_READ_TIMEOUT_MS:30000}}
 
 logging:
   level:
     com.yyh: ${APP_LOG_LEVEL:INFO}
+
+analytics:
+  events:
+    enabled: ${ANALYTICS_EVENTS_ENABLED:true}
+    agent-trace-topic: ${KAFKA_TOPIC_ANALYTICS_AGENT_TRACE:analytics.agent.trace}

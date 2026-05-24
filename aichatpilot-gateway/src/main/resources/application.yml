@@ -23,6 +23,18 @@ spring:
       default-filters:
         - PreserveHostHeader
 
+gateway:
+  rate-limit:
+    enabled: ${GATEWAY_RATE_LIMIT_ENABLED:true}
+    window-seconds: ${GATEWAY_RATE_LIMIT_WINDOW_SECONDS:1}
+    requests-per-window: ${GATEWAY_RATE_LIMIT_REQUESTS_PER_WINDOW:40}
+    burst-extra-requests: ${GATEWAY_RATE_LIMIT_BURST_EXTRA_REQUESTS:20}
+    fail-open: ${GATEWAY_RATE_LIMIT_FAIL_OPEN:true}
+    route-limits:
+      chat-service: ${GATEWAY_RATE_LIMIT_CHAT_SERVICE:20}
+      agent-service: ${GATEWAY_RATE_LIMIT_AGENT_SERVICE:15}
+      knowledge-service: ${GATEWAY_RATE_LIMIT_KNOWLEDGE_SERVICE:30}
+
 jwt:
   secret: ${JWT_SECRET:AIChatPilot-SecretKey-Must-Be-At-Least-32-Bytes!}
 

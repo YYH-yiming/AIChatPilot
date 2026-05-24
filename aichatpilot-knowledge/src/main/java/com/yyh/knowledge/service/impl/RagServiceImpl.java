@@ -1,5 +1,6 @@
 package com.yyh.knowledge.service.impl;
 
+import com.yyh.knowledge.cache.FaqCacheService;
 import com.yyh.knowledge.dto.KnowledgeAskRequest;
 import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeSearchHitVO;
@@ -26,6 +27,7 @@ public class RagServiceImpl implements RagService {
 
     private final RetrievalService retrievalService;
     private final LlmService llmService;
+    private final FaqCacheService faqCacheService;
 
     @Value("${knowledge.rag.top-k:5}")
     private int defaultTopK;
@@ -39,6 +41,10 @@ public class RagServiceImpl implements RagService {
     @Override
     public KnowledgeAskResponse ask(Long kbId, KnowledgeAskRequest request) {
         int topK = request.getTopK() == null ? defaultTopK : request.getTopK();
+        KnowledgeAskResponse cached = faqCacheService.get(kbId, request.getQuery(), topK);
+        if (cached != null) {
+            return cached;
+        }
         List<KnowledgeSearchHitVO> references = retrievalService.search(request.getQuery(), kbId, topK);
 
         KnowledgeAskResponse response = new KnowledgeAskResponse();
@@ -52,11 +58,13 @@ public class RagServiceImpl implements RagService {
 
         if (references.isEmpty()) {
             response.setAnswer(emptyAnswer);
+            faqCacheService.put(response);
             return response;
         }
 
         String answer = llmService.chat(resolveSystemPrompt(), buildUserPrompt(request.getQuery(), references));
         response.setAnswer(StringUtils.hasText(answer) ? answer.trim() : emptyAnswer);
+        faqCacheService.put(response);
         return response;
     }
 

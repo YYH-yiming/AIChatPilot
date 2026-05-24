@@ -21,8 +21,10 @@ public abstract class BaseAgent {
             response.setTokenUsed(context.getTokenUsed());
             response.setDurationMs(System.currentTimeMillis() - start);
             agentTraceService.record(AgentTraceService.TraceRecord.builder()
+                    .tenantId(request.getTenantId())
                     .sessionId(request.getSessionId())
                     .agentName(agentName())
+                    .intent(agentName())
                     .inputText(request.getQuery())
                     .outputText(response.getAnswer())
                     .toolsCalled(context.getToolsCalled())
@@ -34,8 +36,10 @@ public abstract class BaseAgent {
             return response;
         } catch (Exception ex) {
             agentTraceService.record(AgentTraceService.TraceRecord.builder()
+                    .tenantId(request.getTenantId())
                     .sessionId(request.getSessionId())
                     .agentName(agentName())
+                    .intent(agentName())
                     .inputText(request.getQuery())
                     .outputText(null)
                     .toolsCalled(context.getToolsCalled())

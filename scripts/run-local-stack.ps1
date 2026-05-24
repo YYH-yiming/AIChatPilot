@@ -1,7 +1,7 @@
 param(
     [string]$Profile = "local",
     [string]$EnvFile = "",
-    [string[]]$Services = @("redis", "kafka", "es", "minio", "user", "knowledge", "agent", "gateway"),
+    [string[]]$Services = @("redis", "kafka", "es", "minio", "user", "knowledge", "agent", "chat", "analytics", "gateway"),
     [switch]$SkipEnv,
     [int]$InfraDelaySeconds = 4,
     [int]$ServiceDelaySeconds = 8
@@ -58,6 +58,16 @@ $serviceDefinitions = [ordered]@{
         delay  = $ServiceDelaySeconds
         title  = "AIChatPilot-Agent"
     }
+    chat = @{
+        script = Join-Path $PSScriptRoot "run-chat.ps1"
+        delay  = $ServiceDelaySeconds
+        title  = "AIChatPilot-Chat"
+    }
+    analytics = @{
+        script = Join-Path $PSScriptRoot "run-analytics.ps1"
+        delay  = $ServiceDelaySeconds
+        title  = "AIChatPilot-Analytics"
+    }
     gateway = @{
         script = Join-Path $PSScriptRoot "run-gateway.ps1"
         delay  = $ServiceDelaySeconds
@@ -87,7 +97,7 @@ function Start-ServiceWindow {
         "& '$scriptPath'"
     )
 
-    if ($ServiceKey -in @("user", "knowledge", "agent", "gateway")) {
+    if ($ServiceKey -in @("user", "knowledge", "agent", "chat", "analytics", "gateway")) {
         $commandParts += "-Profile '$Profile'"
         if ($SkipEnv) {
             $commandParts += "-SkipEnv"
@@ -132,4 +142,6 @@ Write-Host "  MinIO    http://localhost:9000"
 Write-Host "  User     http://localhost:8081"
 Write-Host "  Knowledge http://localhost:8082"
 Write-Host "  Agent    http://localhost:8083"
+Write-Host "  Chat     http://localhost:8084"
+Write-Host "  Analytics http://localhost:8085"
 Write-Host "  Gateway  http://localhost:8080"
