@@ -1,97 +1,69 @@
 # AIChatPilot
 
-AIChatPilot 是一个基于 Spring Boot / Spring Cloud 的 Maven 多模块项目，当前已完成前四步基础搭建，`common` 与 `user` 模块可在本机独立运行验证。
+AIChatPilot 是一个基于 Spring Boot / Spring Cloud 的 Maven 多模块项目，当前主线已经推进到 `Agent / Chat / Analytics`，并完成了知识库 RAG、混合检索、会话管理、Agent 编排、统计分析等核心链路。
 
-## 模块结构
+## 模块概览
 
-- `aichatpilot-common`：公共返回体、异常处理、JWT 工具
-- `aichatpilot-user`：注册、登录、用户信息、Spring Security + JWT
-- `aichatpilot-gateway` / `aichatpilot-chat` / `aichatpilot-knowledge` 等：后续扩展模块
-- `docker/`：MySQL、Redis、Nacos、MinIO 等基础设施
-- `docs/`：本地测试、部署、配置规范文档
+- `aichatpilot-common`：公共返回体、异常处理、分页、JWT 工具
+- `aichatpilot-user`：注册、登录、用户信息、租户管理
+- `aichatpilot-gateway`：统一入口、鉴权、路由转发、限流
+- `aichatpilot-knowledge`：知识库 CRUD、文档上传、切片、Kafka 异步处理、Embedding、Milvus / ES 混合检索、RAG 问答
+- `aichatpilot-agent`：Router Agent、多 Agent 编排、工具调用、短期记忆、Trace
+- `aichatpilot-chat`：会话管理、消息收发、多轮上下文、SSE 流式输出
+- `aichatpilot-analytics`：会话与 Agent 统计、仪表盘、趋势、来源、意图、性能分析
+- `aichatpilot-mcp-server`：预留中的 MCP 工具服务骨架
 
-## 环境约定
+## 当前状态
 
-项目已切换为 `profile + 环境变量` 的配置方式：
+- 已完成主线：`1-6`、`8-11`、`13`、`14`、`15` 的主要内容
+- `7`、`12` 仍按当前工程节奏保留为后续补充项
+- `analytics` 已不再只是空壳，已有统计接口和事件消费能力
+- `mcp-server` 目前仍是骨架，后续再补工具标准化暴露
 
-- `local`：本机开发，默认关闭 Redis 自动配置，Nacos 默认关闭
-- `dev`：开发环境，支持连接远程 MySQL / Redis / Nacos
-- `prod`：生产环境，默认关闭 Knife4j，日志更保守
+## 端口约定
 
-默认入口配置：
+- `gateway`：`8080`
+- `user`：`8081`
+- `knowledge`：`8082`
+- `agent`：`8083`
+- `chat`：`8084`
+- `analytics`：`8085`
+- `mcp-server`：`8086`
 
-- `aichatpilot-user/src/main/resources/application.yml`
-- `aichatpilot-user/src/main/resources/bootstrap.yml`
+基础设施默认端口：
 
-环境覆盖文件：
+- MySQL：`3306`
+- Redis：`6379`
+- Nacos：`8848`
+- MinIO：`9000` / `9001`
+- Kafka：`9095`
+- Elasticsearch：`9200`
+- Milvus：`19530`
 
-- `aichatpilot-user/src/main/resources/application-local.yml`
-- `aichatpilot-user/src/main/resources/application-dev.yml`
-- `aichatpilot-user/src/main/resources/application-prod.yml`
+## 启动建议
 
-## 快速开始
+优先使用仓库内脚本启动本机联调环境：
 
-### 1. 初始化数据库
-
-执行：
-
-```bash
-mysql -u root -p < docker/mysql/init.sql
+```powershell
+.\scripts\run-local-stack.ps1
 ```
 
-### 2. 准备环境变量
-
-复制示例文件，自行填入实际值：
-
-- `.env.local.example`
-- `.env.dev.example`
-- `.env.prod.example`
-
-本地开发通常使用 `local`。
-
-### 3. 构建项目
-
-```bash
-mvn clean install -DskipTests
-```
-
-### 4. 启动用户模块
-
-```bash
-mvn -pl aichatpilot-user -am -DskipTests install
-mvn -pl aichatpilot-user spring-boot:run
-```
-
-也可以直接使用脚本：
+单模块启动可使用：
 
 ```powershell
 .\scripts\run-user.ps1
-.\scripts\run-user.ps1 -Profile dev
-```
-
-```bash
-./scripts/run-user.sh
-./scripts/run-user.sh dev
-```
-
-### 5. 启动网关模块
-
-```powershell
 .\scripts\run-gateway.ps1
-.\scripts\run-gateway.ps1 -Profile dev
+.\scripts\run-knowledge.ps1
+.\scripts\run-agent.ps1
+.\scripts\run-chat.ps1
+.\scripts\run-analytics.ps1
 ```
 
-```bash
-./scripts/run-gateway.sh
-./scripts/run-gateway.sh dev
-```
+## 文档入口
 
-## 推荐文档
-
+- `docs/项目开发规范与模块路线图.md`
+- `docs/端口分配与服务映射清单.md`
 - `docs/环境配置与启动规范.md`
-- `docs/本地测试指南_不依赖Docker.md`
-- `docs/服务器Docker部署指南.md`
+- `docs/项目总接口文档.md`
+- `docs/前端页面需求与功能规划.md`
 
-## 当前建议
-
-开发阶段优先在本机推进功能；部署到服务器时，只修改环境变量或服务器上的 env 文件，不直接改仓库中的 yml。

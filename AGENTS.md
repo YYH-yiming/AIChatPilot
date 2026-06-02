@@ -21,10 +21,10 @@
 
 - 已完成前 `1-10` 步中的主要开发内容
 - 第 `7` 步“Docker 扩展 / 部署补充规范”没有作为当前主线完成项
-- 另外，`aichatpilot-agent` 与 `aichatpilot-chat` 已经落地并可本机验证
+- `aichatpilot-agent`、`aichatpilot-chat`、`aichatpilot-analytics` 都已经落地并可本机验证
 - 因此当前主线完成状态更准确的表述是：
-  - 已完成：第 `1`、`2`、`3`、`4`、`5`、`6`、`8`、`9`、`10`、`11`、`13` 步主要内容
-  - 未作为当前主线完成项：第 `7`、`12`、`14` 步及以后
+  - 已完成：第 `1`、`2`、`3`、`4`、`5`、`6`、`8`、`9`、`10`、`11`、`13`、`14`、`15` 步主要内容
+  - 未作为当前主线完成项：第 `7`、`12`、`16` 步及以后
 
 当前模块分层如下：
 
@@ -34,7 +34,7 @@
 - `aichatpilot-knowledge`：知识库模块，已具备知识库 CRUD、文档上传、MinIO 存储、Tika 解析、切片、Kafka 异步处理、Embedding、Milvus/ES 混合检索、RAG 问答
 - `aichatpilot-chat`：已具备会话管理、消息收发、多轮上下文、SSE 流式输出
 - `aichatpilot-agent`：已具备 Router Agent、多 Agent 编排、工具调用、Agent Trace
-- `aichatpilot-analytics`：当前仍为骨架模块，后续负责对话统计、满意度分析、Token/调用成本分析
+- `aichatpilot-analytics`：已具备会话与 Agent 统计、仪表盘、趋势、来源、意图、性能分析
 - `aichatpilot-mcp-server`：当前仍为骨架模块，后续负责 MCP 工具注册、统一工具暴露、外部能力接入
 
 Java 代码位于各模块的 `src/main/java`，配置文件位于 `src/main/resources`，测试位于 `src/test/java`。基础设施位于 `docker/`，启动脚本位于 `scripts/`，当前有效文档位于 `docs/`，历史材料位于 `docs-bak/`。
@@ -45,10 +45,9 @@ Java 代码位于各模块的 `src/main/java`，配置文件位于 `src/main/res
 
 1. `aichatpilot-mcp-server`
    目标：把订单查询、工单处理、知识检索等工具统一收口到 MCP 协议层
-2. `aichatpilot-analytics`
-   目标：消费会话和 Agent 事件，沉淀运营分析、调用分析、质量分析能力
-3. 部署治理与高可用加固
+2. 部署治理与高可用加固
    目标：补齐监控、链路追踪、限流熔断、灰度发布、容器化部署标准
+3. 如果后续还要扩展 Agent 工具生态，再回头补 `mcp-server` 的协议适配与工具注册标准化
 
 `chat` 已经补齐后，后续不要再把会话逻辑塞回 `agent`。`chat` 负责入口和消息事件源，`agent` 负责意图路由和工具编排，`mcp-server` 负责工具标准化暴露。
 
