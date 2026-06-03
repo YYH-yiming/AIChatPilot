@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 本地密钥与地址，不入库
+.env
+# 运行产物与环境相关快照（含全文、自增id，体积大且环境相关）
+results/
+datasets/
+
+# 评测集本身（seed_from_faq.jsonl / generated.jsonl / eval_set.jsonl）默认保留入库，
+# 作为可复现的评测资产；如不想入库可在此追加。

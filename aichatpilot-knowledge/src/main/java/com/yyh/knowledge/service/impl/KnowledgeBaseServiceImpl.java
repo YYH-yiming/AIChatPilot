@@ -17,6 +17,7 @@ import com.yyh.knowledge.mapper.KnowledgeChunkMapper;
 import com.yyh.knowledge.mapper.KnowledgeDocumentMapper;
 import com.yyh.knowledge.minio.MinioService;
 import com.yyh.knowledge.search.RetrievalService;
+import com.yyh.knowledge.search.RetrievalOptions;
 import com.yyh.knowledge.service.KnowledgeBaseService;
 import com.yyh.knowledge.service.RagService;
 import com.yyh.knowledge.support.SecurityUtils;
@@ -101,7 +102,10 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Override
     public List<KnowledgeSearchHitVO> search(Long id, KnowledgeSearchRequest request) {
         requireKnowledgeBase(id);
-        return retrievalService.search(request.getQuery(), id, request.getTopK());
+        RetrievalOptions options = new RetrievalOptions(
+                request.getDenseEnabled(), request.getSparseEnabled(),
+                request.getRerankEnabled(), request.getRecallTopN());
+        return retrievalService.search(request.getQuery(), id, request.getTopK(), options);
     }
 
     @Override

@@ -27,6 +27,7 @@ public class RetrievalService {
     private final MilvusService milvusService;
     private final ElasticsearchService elasticsearchService;
     private final KnowledgeChunkMapper knowledgeChunkMapper;
+    private final RerankService rerankService;
 
     @Value("${knowledge.retrieval.top-k:5}")
     private int defaultTopK;
@@ -45,6 +46,12 @@ public class RetrievalService {
 
     @Value("${knowledge.retrieval.sparse-enabled:true}")
     private boolean sparseEnabled;
+
+    @Value("${knowledge.retrieval.rerank-enabled:true}")
+    private boolean rerankEnabled;
+
+    @Value("${knowledge.retrieval.recall-top-n:20}")
+    private int recallTopN;
 
     public void indexChunks(Long kbId, List<KnowledgeChunk> chunks) {
         if (!indexOnUpload || chunks == null || chunks.isEmpty()) {
@@ -66,21 +73,51 @@ public class RetrievalService {
     }
 
     public List<KnowledgeSearchHitVO> search(String query, Long kbId, Integer topK) {
+        return search(query, kbId, topK, null);
+    }
+
+    /**
+     * 带按请求覆盖项的检索：召回层（dense/sparse + RRF，可加宽到 recallN）+ 可选 rerank 精排到 topK。
+     * options 为 null 或字段为 null 时回退全局配置默认值，行为与旧版一致。
+     */
+    public List<KnowledgeSearchHitVO> search(String query, Long kbId, Integer topK, RetrievalOptions options) {
         int limit = topK == null ? defaultTopK : topK;
+        boolean useDense = options != null && options.dense() != null ? options.dense() : denseEnabled;
+        boolean useSparse = options != null && options.sparse() != null ? options.sparse() : sparseEnabled;
+        boolean useRerank = options != null && options.rerank() != null ? options.rerank() : rerankEnabled;
+        int recallN = options != null && options.recallTopN() != null
+                ? options.recallTopN()
+                : (useRerank ? recallTopN : limit);
+        recallN = Math.max(recallN, limit);
+
+        List<KnowledgeSearchHitVO> candidates = retrieveCandidates(query, kbId, useDense, useSparse, recallN);
+        if (candidates.isEmpty()) {
+            return fallbackSearch(query, kbId, limit);
+        }
+        if (useRerank) {
+            candidates = rerankService.rerank(query, candidates, limit);
+        }
+        if (candidates.size() > limit) {
+            return new ArrayList<>(candidates.subList(0, limit));
+        }
+        return candidates;
+    }
+
+    private List<KnowledgeSearchHitVO> retrieveCandidates(String query, Long kbId, boolean useDense, boolean useSparse, int recallN) {
         Map<Long, RetrievalScore> merged = new LinkedHashMap<>();
 
-        if (denseEnabled) {
+        if (useDense) {
             try {
-                Map<Long, Double> denseResults = milvusService.search(kbId, embeddingService.embed(query), limit);
+                Map<Long, Double> denseResults = milvusService.search(kbId, embeddingService.embed(query), recallN);
                 mergeRankScores(merged, denseResults, ScoreSource.DENSE);
             } catch (Exception ex) {
                 log.warn("Milvus检索失败，将忽略稠密检索结果: {}", ex.getMessage());
             }
         }
 
-        if (sparseEnabled) {
+        if (useSparse) {
             try {
-                Map<Long, Double> sparseResults = elasticsearchService.search(kbId, query, limit);
+                Map<Long, Double> sparseResults = elasticsearchService.search(kbId, query, recallN);
                 mergeRankScores(merged, sparseResults, ScoreSource.SPARSE);
             } catch (Exception ex) {
                 log.warn("ES检索失败，将忽略稀疏检索结果: {}", ex.getMessage());
@@ -89,12 +126,12 @@ public class RetrievalService {
 
         List<Long> chunkIds = merged.entrySet().stream()
                 .sorted(Comparator.comparingDouble((Map.Entry<Long, RetrievalScore> entry) -> entry.getValue().score()).reversed())
-                .limit(limit)
+                .limit(recallN)
                 .map(Map.Entry::getKey)
                 .toList();
 
         if (chunkIds.isEmpty()) {
-            return fallbackSearch(query, kbId, limit);
+            return new ArrayList<>();
         }
 
         Map<Long, KnowledgeChunk> chunkMap = knowledgeChunkMapper.selectBatchIds(chunkIds).stream()

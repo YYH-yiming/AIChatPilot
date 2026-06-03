@@ -6,6 +6,7 @@ import com.yyh.knowledge.dto.KnowledgeAskResponse;
 import com.yyh.knowledge.dto.KnowledgeSearchHitVO;
 import com.yyh.knowledge.llm.LlmService;
 import com.yyh.knowledge.search.RetrievalService;
+import com.yyh.knowledge.search.RetrievalOptions;
 import com.yyh.knowledge.service.RagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,11 +42,16 @@ public class RagServiceImpl implements RagService {
     @Override
     public KnowledgeAskResponse ask(Long kbId, KnowledgeAskRequest request) {
         int topK = request.getTopK() == null ? defaultTopK : request.getTopK();
-        KnowledgeAskResponse cached = faqCacheService.get(kbId, request.getQuery(), topK);
+        // 带显式检索覆盖项（评测切 arm）时绕过 FAQ 缓存，避免不同 arm 经缓存互相污染
+        boolean bypassCache = request.getDenseEnabled() != null || request.getSparseEnabled() != null
+                || request.getRerankEnabled() != null || request.getRecallTopN() != null;
+        KnowledgeAskResponse cached = bypassCache ? null : faqCacheService.get(kbId, request.getQuery(), topK);
         if (cached != null) {
             return cached;
         }
-        List<KnowledgeSearchHitVO> references = retrievalService.search(request.getQuery(), kbId, topK);
+        List<KnowledgeSearchHitVO> references = retrievalService.search(request.getQuery(), kbId, topK,
+                new RetrievalOptions(request.getDenseEnabled(), request.getSparseEnabled(),
+                        request.getRerankEnabled(), request.getRecallTopN()));
 
         KnowledgeAskResponse response = new KnowledgeAskResponse();
         response.setKbId(kbId);
@@ -58,13 +64,17 @@ public class RagServiceImpl implements RagService {
 
         if (references.isEmpty()) {
             response.setAnswer(emptyAnswer);
-            faqCacheService.put(response);
+            if (!bypassCache) {
+                faqCacheService.put(response);
+            }
             return response;
         }
 
         String answer = llmService.chat(resolveSystemPrompt(), buildUserPrompt(request.getQuery(), references));
         response.setAnswer(StringUtils.hasText(answer) ? answer.trim() : emptyAnswer);
-        faqCacheService.put(response);
+        if (!bypassCache) {
+            faqCacheService.put(response);
+        }
         return response;
     }
 

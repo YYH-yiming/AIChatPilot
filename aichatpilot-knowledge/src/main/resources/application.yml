@@ -64,6 +64,11 @@ embedding:
   api-key: ${EMBEDDING_API_KEY:}
   model: ${EMBEDDING_MODEL:BAAI/bge-large-zh-v1.5}
 
+rerank:
+  api-url: ${RERANK_API_URL:https://api.siliconflow.cn/v1/rerank}
+  api-key: ${RERANK_API_KEY:}
+  model: ${RERANK_MODEL:BAAI/bge-reranker-v2-m3}
+
 llm:
   provider: ${LLM_PROVIDER:ark}
   api-url: ${LLM_API_URL:https://ark.cn-beijing.volces.com/api/v3/chat/completions}
@@ -97,6 +102,8 @@ knowledge:
     fail-on-index-error: ${KNOWLEDGE_RETRIEVAL_FAIL_ON_INDEX_ERROR:false}
     dense-enabled: ${KNOWLEDGE_RETRIEVAL_DENSE_ENABLED:true}
     sparse-enabled: ${KNOWLEDGE_RETRIEVAL_SPARSE_ENABLED:true}
+    rerank-enabled: ${KNOWLEDGE_RETRIEVAL_RERANK_ENABLED:true}
+    recall-top-n: ${KNOWLEDGE_RETRIEVAL_RECALL_TOP_N:20}
   rag:
     top-k: ${RAG_TOP_K:5}
     empty-answer: ${RAG_EMPTY_ANSWER:我没有在知识库中找到相关信息}

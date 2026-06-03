@@ -19,7 +19,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,7 +54,7 @@ class RagServiceImplTest {
         request.setQuery("退款政策");
 
         when(faqCacheService.get(1L, "退款政策", 5)).thenReturn(null);
-        when(retrievalService.search("退款政策", 1L, 5)).thenReturn(List.of());
+        when(retrievalService.search(eq("退款政策"), eq(1L), eq(5), any())).thenReturn(List.of());
         when(llmService.currentModel()).thenReturn("doubao-test");
 
         KnowledgeAskResponse response = ragService.ask(1L, request);
@@ -77,7 +79,7 @@ class RagServiceImplTest {
         hit.setContent("退款需在7天内提交申请。");
 
         when(faqCacheService.get(2L, "退款政策", 3)).thenReturn(null);
-        when(retrievalService.search("退款政策", 2L, 3)).thenReturn(List.of(hit));
+        when(retrievalService.search(eq("退款政策"), eq(2L), eq(3), any())).thenReturn(List.of(hit));
         when(llmService.currentModel()).thenReturn("doubao-test");
         when(llmService.chat(anyString(), anyString())).thenReturn("根据知识库，退款需在7天内提交申请。");
 
@@ -108,7 +110,7 @@ class RagServiceImplTest {
         KnowledgeAskResponse response = ragService.ask(3L, request);
 
         assertEquals("缓存答案", response.getAnswer());
-        verify(retrievalService, never()).search("退款政策", 3L, 5);
+        verify(retrievalService, never()).search(eq("退款政策"), eq(3L), eq(5), any());
         verify(llmService, never()).chat(anyString(), anyString());
     }
 }
