@@ -85,6 +85,7 @@ RERANK_API_KEY=<你的硅基流动 key，可与 EMBEDDING 同一个>
 - **步 2 必须重跑**：`run-knowledge.ps1` 会先 `mvn install` 重新打包，我的 Java 改动（按请求切 arm、rerank）才会生效；旧实例会忽略覆盖参数。
 - **最快出第一版 IR 表**：步 1→2→3→4→5→6，跳过 LLM 生成（步 7）和 rerank（步 8），直接用 40 条种子（doc 级 gold）跑 A/B/C。`run_ir_eval` 不调 LLM，服务端只要有 `EMBEDDING_API_KEY`。
 - **arm 与 key 对应**：A/C 要 `EMBEDDING_API_KEY`；D 额外要 `RERANK_API_KEY`；RAGAs 要 `LLM_API_KEY`（服务端生成 + eval 端判分）。
+- **RAGAs 调试**：判分指标出现空值/NaN 时加 `--strict`，让 `evaluate` 直接抛出被吞掉的真实异常（默认静默记 NaN）。先 `--arms C --limit 2 --strict` 跑两条定位问题，再放大。
 
 ---
 
@@ -102,3 +103,16 @@ RERANK_API_KEY=<你的硅基流动 key，可与 EMBEDDING 同一个>
 - 评测期 FAQ 缓存不会干扰：带覆盖参数的 `/ask` 已自动绕过缓存；`/search` 本就不缓存。
 - 自增 id 会随重新入库漂移：以 `chunks_snapshot.json` 为准，要重测别重灌库，重灌后重新跑步 4/5。
 - `.env`、`results/`、`chunks_snapshot.json` 默认不入库（见 `.gitignore`）；评测集 jsonl 默认保留。
+
+---
+
+## 7. RAGAs 判分指标全是空/NaN 排查
+
+判分链路是 **eval 端独立**的 OpenAI 兼容端点（`LLM_API_URL` / `LLM_MODEL` + `EMBEDDING_*`），与服务端无关。全 NaN 时按顺序查：
+
+1. **判分 LLM 通不通**：`python scripts/test_llm.py`，应打印一句回复。报错就是 key / URL / 模型名问题。
+2. **看真实异常**：`python scripts/run_ragas_eval.py --arms C --limit 2 --strict`（需 knowledge 服务在跑——它要先调 `/ask` 取样本）。`--strict` 会把默认被吞掉的异常抛出来：
+   - `OutputParser` / `pydantic` / JSON 解析失败 → 判分模型太弱或带「思考」输出（小模型如 8B 常见）。换更强的指令模型，或关掉 thinking。
+   - `404 Not Found` → `*_API_URL` 写成了完整端点（`…/chat/completions`）。脚本已用 `_api_root()` 自动收敛回根，正常填到 `…/v1` 即可。
+   - `401` → `LLM_API_KEY` / `EMBEDDING_API_KEY` 不对。
+3. 不加 `--strict` 时单条判分失败只会让该格记 NaN，汇总用 `mean(skipna=True)` 仍出数——所以「看起来全空」必须用 `--strict` 才能定位根因。
