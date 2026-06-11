@@ -17,4 +17,7 @@ public interface KnowledgeBaseService {
     void delete(Long id);
     List<KnowledgeSearchHitVO> search(Long id, KnowledgeSearchRequest request);
     KnowledgeAskResponse ask(Long id, KnowledgeAskRequest request);
+
+    /** 流式问答：先校验知识库归属（租户隔离），再委托 {@link RagService#askStream}。 */
+    void askStream(Long id, KnowledgeAskRequest request, RagStreamSink sink);
 }

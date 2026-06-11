@@ -42,7 +42,7 @@
 
         <!-- AI -->
         <spring-ai.version>1.0.0-M5</spring-ai.version>
-        <langchain4j.version>1.0.0-beta1</langchain4j.version>
+        <langchain4j.version>1.16.1</langchain4j.version>
 
         <!-- DB & ORM -->
         <mybatis-plus.version>3.5.9</mybatis-plus.version>

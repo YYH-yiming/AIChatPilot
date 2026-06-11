@@ -62,6 +62,29 @@ public class KnowledgeBaseSelector {
         return new SelectionResult(fallback.getId(), response, "fallback-kbid");
     }
 
+    /**
+     * 只选库不发问：抽出 {@link #askAcrossKnowledgeBases} 的选库逻辑（复用同样的 LLM 选库 / 全库检索 / 兜底），
+     * 返回选中的 kbId，供流式路径（先选库、再走 knowledge /ask/stream）使用。
+     */
+    public Long selectKbId(AgentRequest request, String intent, Long defaultKbId, Integer topK) {
+        if (request.getKbId() != null && request.getKbId() > 0) {
+            return request.getKbId();
+        }
+        List<KnowledgeBaseClientResponse> knowledgeBases = safeListKnowledgeBases();
+        if (knowledgeBases.isEmpty()) {
+            return defaultKbId;
+        }
+        Optional<KnowledgeBaseClientResponse> byLlm = selectByLlm(intent, request.getQuery(), knowledgeBases);
+        if (byLlm.isPresent()) {
+            return byLlm.get().getId();
+        }
+        Optional<KnowledgeBaseClientResponse> bySearch = selectBySearch(request.getQuery(), topK, knowledgeBases);
+        if (bySearch.isPresent()) {
+            return bySearch.get().getId();
+        }
+        return resolveFallbackKnowledgeBase(knowledgeBases, defaultKbId).getId();
+    }
+
     private List<KnowledgeBaseClientResponse> safeListKnowledgeBases() {
         try {
             List<KnowledgeBaseClientResponse> list = knowledgeServiceClient.listKnowledgeBases();

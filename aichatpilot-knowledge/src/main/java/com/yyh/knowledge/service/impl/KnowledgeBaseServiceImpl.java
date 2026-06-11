@@ -20,6 +20,7 @@ import com.yyh.knowledge.search.RetrievalService;
 import com.yyh.knowledge.search.RetrievalOptions;
 import com.yyh.knowledge.service.KnowledgeBaseService;
 import com.yyh.knowledge.service.RagService;
+import com.yyh.knowledge.service.RagStreamSink;
 import com.yyh.knowledge.support.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -112,6 +113,12 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public KnowledgeAskResponse ask(Long id, KnowledgeAskRequest request) {
         requireKnowledgeBase(id);
         return ragService.ask(id, request);
+    }
+
+    @Override
+    public void askStream(Long id, KnowledgeAskRequest request, RagStreamSink sink) {
+        requireKnowledgeBase(id);
+        ragService.askStream(id, request, sink);
     }
 
     private KnowledgeBase requireKnowledgeBase(Long id) {

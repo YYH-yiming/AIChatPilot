@@ -40,5 +40,7 @@ public class ChatProperties {
     @Data
     public static class Sse {
         private long timeoutMs = 180000L;
+        /** true=真·token 级流式（chat 转发 knowledge /ask/stream）；false=现状假流式（整段 reply）。默认 false，瞬时可回退。 */
+        private boolean trueStreaming = false;
     }
 }

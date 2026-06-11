@@ -8,13 +8,16 @@ import com.yyh.knowledge.llm.LlmService;
 import com.yyh.knowledge.search.RetrievalService;
 import com.yyh.knowledge.search.RetrievalOptions;
 import com.yyh.knowledge.service.RagService;
+import com.yyh.knowledge.service.RagStreamSink;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RagServiceImpl implements RagService {
@@ -47,11 +50,14 @@ public class RagServiceImpl implements RagService {
                 || request.getRerankEnabled() != null || request.getRecallTopN() != null;
         KnowledgeAskResponse cached = bypassCache ? null : faqCacheService.get(kbId, request.getQuery(), topK);
         if (cached != null) {
+            log.info("[PERF] stage=rag kbId={} topK={} cacheHit=true retrievalMs=0 llmMs=0", kbId, topK);
             return cached;
         }
+        long retrievalStart = System.nanoTime();
         List<KnowledgeSearchHitVO> references = retrievalService.search(request.getQuery(), kbId, topK,
                 new RetrievalOptions(request.getDenseEnabled(), request.getSparseEnabled(),
                         request.getRerankEnabled(), request.getRecallTopN()));
+        long retrievalMs = elapsedMs(retrievalStart);
 
         KnowledgeAskResponse response = new KnowledgeAskResponse();
         response.setKbId(kbId);
@@ -67,15 +73,63 @@ public class RagServiceImpl implements RagService {
             if (!bypassCache) {
                 faqCacheService.put(response);
             }
+            log.info("[PERF] stage=rag kbId={} topK={} cacheHit=false grounded=false refs=0 retrievalMs={} llmMs=-1",
+                    kbId, topK, retrievalMs);
             return response;
         }
 
+        long llmStart = System.nanoTime();
         String answer = llmService.chat(resolveSystemPrompt(), buildUserPrompt(request.getQuery(), references));
+        long llmMs = elapsedMs(llmStart);
         response.setAnswer(StringUtils.hasText(answer) ? answer.trim() : emptyAnswer);
         if (!bypassCache) {
             faqCacheService.put(response);
         }
+        log.info("[PERF] stage=rag kbId={} topK={} cacheHit=false grounded=true refs={} retrievalMs={} llmMs={}",
+                kbId, topK, references.size(), retrievalMs, llmMs);
         return response;
+    }
+
+    @Override
+    public void askStream(Long kbId, KnowledgeAskRequest request, RagStreamSink sink) {
+        int topK = request.getTopK() == null ? defaultTopK : request.getTopK();
+        // 流式路径暂不走 FAQ 缓存（基线期缓存关闭；语义缓存为独立 P1 项）。
+        long retrievalStart = System.nanoTime();
+        List<KnowledgeSearchHitVO> references = retrievalService.search(request.getQuery(), kbId, topK,
+                new RetrievalOptions(request.getDenseEnabled(), request.getSparseEnabled(),
+                        request.getRerankEnabled(), request.getRecallTopN()));
+        long retrievalMs = elapsedMs(retrievalStart);
+
+        KnowledgeAskResponse meta = new KnowledgeAskResponse();
+        meta.setKbId(kbId);
+        meta.setQuery(request.getQuery());
+        meta.setTopK(topK);
+        meta.setReferences(references);
+        meta.setReferenceCount(references.size());
+        meta.setGrounded(!references.isEmpty());
+        meta.setModel(llmService.currentModel());
+        sink.meta(meta);
+
+        if (references.isEmpty()) {
+            sink.token(emptyAnswer);
+            sink.done(emptyAnswer, 0);
+            log.info("[PERF] stage=rag-stream kbId={} topK={} grounded=false refs=0 retrievalMs={} llmMs=-1",
+                    kbId, topK, retrievalMs);
+            return;
+        }
+
+        long llmStart = System.nanoTime();
+        LlmService.StreamResult result = llmService.chatStream(resolveSystemPrompt(),
+                buildUserPrompt(request.getQuery(), references), sink::token);
+        long llmMs = elapsedMs(llmStart);
+        String answer = StringUtils.hasText(result.fullText()) ? result.fullText().trim() : emptyAnswer;
+        sink.done(answer, result.totalTokens());
+        log.info("[PERF] stage=rag-stream kbId={} topK={} grounded=true refs={} retrievalMs={} llmMs={}",
+                kbId, topK, references.size(), retrievalMs, llmMs);
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000L;
     }
 
     private String resolveSystemPrompt() {

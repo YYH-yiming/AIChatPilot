@@ -19,7 +19,9 @@ spring:
     gateway:
       httpclient:
         connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:3000}
-        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:60s}
+        # response-timeout 是 Reactor Netty「两次读之间的 idle 超时」。SSE 长静默（如 agent 整段降级 ~68s）会超 60s 被 reset。
+        # 调到 300s 容纳慢 LLM；根治需 SSE 路由单独放宽 + 心跳（P1-5）。默认值也提高，避免 env 未注入时仍用 60s。
+        response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:300s}
       default-filters:
         - PreserveHostHeader
 

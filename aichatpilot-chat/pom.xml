@@ -79,6 +79,12 @@
             <groupId>com.github.xiaoymin</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
         </dependency>
+
+        <!-- LangChain4j：LLM 客户端（P2 迁移，编译作用域，版本走父 BOM 1.16.1）。LLM_STREAM_IMPL=langchain4j 时启用，jdk 保留。 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

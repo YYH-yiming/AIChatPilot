@@ -38,7 +38,9 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -181,6 +183,50 @@ public class ChatService {
         return reply;
     }
 
+    /**
+     * 流式发送：与 {@link #sendMessage} 完全相同的副作用（落库用户消息/记忆/埋点 → 生成回复 → 落库助手消息/记忆/埋点 → 更新会话），
+     * 区别仅在于回复阶段通过 {@code sink} 逐 token 推送。返回值与 sendMessage 一致（含三个消息 id），供调用方发 done。
+     */
+    public ChatReplyVO sendMessageStreaming(Long sessionId, ChatSendMessageRequest request, ChatStreamSink sink) {
+        ChatSession session = requireOwnedSession(sessionId);
+        if (session.getStatus() == null || session.getStatus() != ChatConstants.SESSION_STATUS_ACTIVE) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "当前会话已关闭，无法继续发送消息");
+        }
+
+        List<ConversationMessage> history = loadConversationHistory(sessionId);
+        ChatMessage userMessage = buildUserMessage(session, request.getContent());
+        chatMessageMapper.insert(userMessage);
+        chatMemoryService.appendMessage(userMessage);
+        chatAnalyticsEventPublisher.publishUserMessage(userMessage);
+
+        long replyStart = System.currentTimeMillis();
+        ChatReplyVO reply = ChatConstants.MODE_AGENT.equals(session.getMode())
+                ? handleAgentModeStreaming(session, request, sink)
+                : handleKnowledgeModeStreaming(session, request, history, sink);
+        if (reply.getDurationMs() == null || reply.getDurationMs() <= 0L) {
+            reply.setDurationMs(System.currentTimeMillis() - replyStart);
+        }
+
+        ChatMessage assistantMessage = buildAssistantMessage(session, reply);
+        chatMessageMapper.insert(assistantMessage);
+        chatMemoryService.appendMessage(assistantMessage);
+        chatAnalyticsEventPublisher.publishAssistantMessage(assistantMessage, reply);
+
+        LocalDateTime now = LocalDateTime.now();
+        chatSessionMapper.update(null, new UpdateWrapper<ChatSession>()
+                .eq("id", session.getId())
+                .eq("user_id", session.getUserId())
+                .eq("tenant_id", session.getTenantId())
+                .set("title", resolveTitle(session.getTitle(), request.getContent()))
+                .set("updated_at", now)
+                .set("last_message_at", now));
+
+        reply.setSessionId(sessionId);
+        reply.setUserMessageId(userMessage.getId());
+        reply.setAssistantMessageId(assistantMessage.getId());
+        return reply;
+    }
+
     public void closeSession(Long sessionId) {
         ChatSession session = requireOwnedSession(sessionId);
         chatSessionMapper.update(null, new UpdateWrapper<ChatSession>()
@@ -244,6 +290,115 @@ public class ChatService {
         reply.setReferenceCount(response.getReferences() == null ? 0 : response.getReferences().size());
         reply.setReferences(toAgentReferenceVos(response.getReferences()));
         return reply;
+    }
+
+    /**
+     * 知识库模式流式：复用 {@link #handleKnowledgeMode} 的改写/选库/换库副作用，
+     * 但用 {@code selectKbId} 只选库、再走 knowledge 的流式 ask，逐 token 经 sink 推送，meta 先于 token。
+     */
+    private ChatReplyVO handleKnowledgeModeStreaming(ChatSession session,
+                                                     ChatSendMessageRequest request,
+                                                     List<ConversationMessage> history,
+                                                     ChatStreamSink sink) {
+        String rewrittenQuery = rewriteService.rewrite(request.getContent(), history);
+        Integer topK = request.getTopK() != null ? request.getTopK() : chatProperties.getKnowledge().getAskTopK();
+        Long kbId = knowledgeBaseSelector.selectKbId(rewrittenQuery, session.getKbId(), topK);
+        if (session.getKbId() == null || !session.getKbId().equals(kbId)) {
+            chatSessionMapper.update(null, new UpdateWrapper<ChatSession>()
+                    .eq("id", session.getId())
+                    .eq("user_id", session.getUserId())
+                    .eq("tenant_id", session.getTenantId())
+                    .set("kb_id", kbId)
+                    .set("updated_at", LocalDateTime.now()));
+            session.setKbId(kbId);
+        }
+
+        ChatReplyVO reply = new ChatReplyVO();
+        reply.setMode(session.getMode());
+        reply.setAnswerSource(ChatConstants.SOURCE_KNOWLEDGE);
+        reply.setRewrittenQuery(rewrittenQuery);
+        reply.setKbId(kbId);
+        reply.setTopK(topK);
+        reply.setTokenUsed(0);
+
+        StringBuilder answerBuf = new StringBuilder();
+        KnowledgeServiceClient.StreamAskResult result = knowledgeServiceClient.askStream(
+                kbId, rewrittenQuery, topK,
+                meta -> {
+                    reply.setKbId(meta.getKbId() != null ? meta.getKbId() : kbId);
+                    reply.setGrounded(meta.getGrounded());
+                    reply.setReferenceCount(meta.getReferenceCount());
+                    reply.setReferences(toKnowledgeReferenceVos(meta.getReferences()));
+                    sink.meta(buildMetaPayload(reply, rewrittenQuery));
+                },
+                token -> {
+                    answerBuf.append(token);
+                    sink.token(token);
+                });
+
+        reply.setAnswer(StringUtils.hasText(result.answer()) ? result.answer() : answerBuf.toString());
+        return reply;
+    }
+
+    /**
+     * Agent 模式流式：调 agent 的 /chat/stream SSE，逐 token 经 sink 转发（faq/policy 真流式；其它意图整段单 token，由 agent 侧降级）。
+     * 与 {@link #handleAgentMode} 等价的回复落库（answer/intent/kbId/tokenUsed/references），但答案是边到边推。
+     */
+    private ChatReplyVO handleAgentModeStreaming(ChatSession session,
+                                                 ChatSendMessageRequest request,
+                                                 ChatStreamSink sink) {
+        AgentChatClientRequest clientRequest = new AgentChatClientRequest();
+        clientRequest.setQuery(request.getContent());
+        clientRequest.setSessionId(session.getId());
+        clientRequest.setKbId(session.getKbId());
+        clientRequest.setTenantId(session.getTenantId());
+
+        ChatReplyVO reply = new ChatReplyVO();
+        reply.setMode(session.getMode());
+        reply.setAnswerSource(ChatConstants.SOURCE_AGENT);
+
+        StringBuilder answerBuf = new StringBuilder();
+        AgentServiceClient.StreamChatResult result = agentServiceClient.chatStream(
+                clientRequest,
+                meta -> sink.meta(meta),
+                token -> {
+                    answerBuf.append(token);
+                    sink.token(token);
+                });
+
+        reply.setAnswer(StringUtils.hasText(result.answer()) ? result.answer() : answerBuf.toString());
+        reply.setIntent(result.intent());
+        reply.setKbId(result.kbId());
+        reply.setTokenUsed(result.tokenUsed());
+        List<ChatReferenceVO> references = extractReferencesFromMeta(result.meta());
+        reply.setReferences(references);
+        reply.setReferenceCount(references.size());
+        return reply;
+    }
+
+    /** 从 agent 转发的 meta 里取出 references（List&lt;Map&gt;）并转成 ChatReferenceVO；缺失/异常返回空。 */
+    private List<ChatReferenceVO> extractReferencesFromMeta(Map<String, Object> meta) {
+        if (meta == null || meta.get("references") == null) {
+            return List.of();
+        }
+        try {
+            return objectMapper.convertValue(meta.get("references"), REFERENCE_TYPE);
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private Map<String, Object> buildMetaPayload(ChatReplyVO reply, String rewrittenQuery) {
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("mode", reply.getMode());
+        meta.put("answerSource", reply.getAnswerSource());
+        meta.put("kbId", reply.getKbId());
+        meta.put("topK", reply.getTopK());
+        meta.put("grounded", reply.getGrounded());
+        meta.put("referenceCount", reply.getReferenceCount());
+        meta.put("rewrittenQuery", rewrittenQuery);
+        meta.put("references", reply.getReferences());
+        return meta;
     }
 
     private ChatSession requireOwnedSession(Long sessionId) {

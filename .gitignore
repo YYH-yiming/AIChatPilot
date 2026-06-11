@@ -11,7 +11,7 @@ target/
 *.iws
 *.iml
 *.ipr
-
+*.log
 ### Eclipse ###
 .apt_generated
 .classpath
@@ -48,3 +48,6 @@ build/
 
 /.codex-m2
 codex-maven-settings.xml
+
+/perf/results
+/perf/bak.md

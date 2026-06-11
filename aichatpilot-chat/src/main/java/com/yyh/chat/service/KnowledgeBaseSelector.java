@@ -56,6 +56,29 @@ public class KnowledgeBaseSelector {
         return new SelectionResult(fallback.getId(), response, "fallback-first");
     }
 
+    /**
+     * 只选库、不发起问答（流式路径用）：选定后由调用方走流式 ask。
+     * requestedKbId>0 直接采用；否则复用与 {@link #ask} 同一套 LLM 选库 / 全库检索 / 兜底逻辑。
+     */
+    public Long selectKbId(String query, Long requestedKbId, Integer topK) {
+        if (requestedKbId != null && requestedKbId > 0) {
+            return requestedKbId;
+        }
+        List<KnowledgeBaseClientResponse> knowledgeBases = safeListKnowledgeBases();
+        if (knowledgeBases.isEmpty()) {
+            throw new IllegalStateException("当前租户下没有可用知识库");
+        }
+        Optional<KnowledgeBaseClientResponse> selectedByLlm = selectByLlm(query, knowledgeBases);
+        if (selectedByLlm.isPresent()) {
+            return selectedByLlm.get().getId();
+        }
+        Optional<KnowledgeBaseClientResponse> selectedBySearch = selectBySearch(query, topK, knowledgeBases);
+        if (selectedBySearch.isPresent()) {
+            return selectedBySearch.get().getId();
+        }
+        return knowledgeBases.get(0).getId();
+    }
+
     private List<KnowledgeBaseClientResponse> safeListKnowledgeBases() {
         List<KnowledgeBaseClientResponse> list = knowledgeServiceClient.listKnowledgeBases();
         return list == null ? List.of() : list.stream()

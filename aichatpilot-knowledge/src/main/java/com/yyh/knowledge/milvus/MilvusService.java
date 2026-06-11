@@ -102,7 +102,9 @@ public class MilvusService {
                 if (chunkId == null) {
                     continue;
                 }
-                results.put(chunkId, hit.path("score").asDouble(0D));
+                // Milvus v2 REST 相似度字段是 distance（COSINE 下即相似度，越大越相关）；兼容老版本的 score，最后兜底 0。
+                double score = hit.path("distance").asDouble(hit.path("score").asDouble(0D));
+                results.put(chunkId, score);
             }
         }
         return results;

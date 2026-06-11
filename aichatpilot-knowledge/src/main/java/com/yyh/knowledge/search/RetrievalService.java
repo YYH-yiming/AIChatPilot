@@ -90,13 +90,22 @@ public class RetrievalService {
                 : (useRerank ? recallTopN : limit);
         recallN = Math.max(recallN, limit);
 
+        long recallStart = System.nanoTime();
         List<KnowledgeSearchHitVO> candidates = retrieveCandidates(query, kbId, useDense, useSparse, recallN);
+        long recallMs = elapsedMs(recallStart);
         if (candidates.isEmpty()) {
+            log.info("[PERF] stage=search kbId={} topK={} dense={} sparse={} rerank={} recallMs={} rerankMs=-1 hit=fallback",
+                    kbId, limit, useDense, useSparse, useRerank, recallMs);
             return fallbackSearch(query, kbId, limit);
         }
+        long rerankMs = -1L;
         if (useRerank) {
+            long rerankStart = System.nanoTime();
             candidates = rerankService.rerank(query, candidates, limit);
+            rerankMs = elapsedMs(rerankStart);
         }
+        log.info("[PERF] stage=search kbId={} topK={} dense={} sparse={} rerank={} recallMs={} rerankMs={} candidates={}",
+                kbId, limit, useDense, useSparse, useRerank, recallMs, rerankMs, candidates.size());
         if (candidates.size() > limit) {
             return new ArrayList<>(candidates.subList(0, limit));
         }
@@ -105,10 +114,18 @@ public class RetrievalService {
 
     private List<KnowledgeSearchHitVO> retrieveCandidates(String query, Long kbId, boolean useDense, boolean useSparse, int recallN) {
         Map<Long, RetrievalScore> merged = new LinkedHashMap<>();
+        long embedMs = -1L;
+        long denseMs = -1L;
+        long sparseMs = -1L;
 
         if (useDense) {
             try {
-                Map<Long, Double> denseResults = milvusService.search(kbId, embeddingService.embed(query), recallN);
+                long embedStart = System.nanoTime();
+                float[] queryVector = embeddingService.embed(query);
+                embedMs = elapsedMs(embedStart);
+                long denseStart = System.nanoTime();
+                Map<Long, Double> denseResults = milvusService.search(kbId, queryVector, recallN);
+                denseMs = elapsedMs(denseStart);
                 mergeRankScores(merged, denseResults, ScoreSource.DENSE);
             } catch (Exception ex) {
                 log.warn("Milvus检索失败，将忽略稠密检索结果: {}", ex.getMessage());
@@ -117,12 +134,17 @@ public class RetrievalService {
 
         if (useSparse) {
             try {
+                long sparseStart = System.nanoTime();
                 Map<Long, Double> sparseResults = elasticsearchService.search(kbId, query, recallN);
+                sparseMs = elapsedMs(sparseStart);
                 mergeRankScores(merged, sparseResults, ScoreSource.SPARSE);
             } catch (Exception ex) {
                 log.warn("ES检索失败，将忽略稀疏检索结果: {}", ex.getMessage());
             }
         }
+
+        log.info("[PERF] stage=recall kbId={} recallN={} embedMs={} denseMs={} sparseMs={} merged={}",
+                kbId, recallN, embedMs, denseMs, sparseMs, merged.size());
 
         List<Long> chunkIds = merged.entrySet().stream()
                 .sorted(Comparator.comparingDouble((Map.Entry<Long, RetrievalScore> entry) -> entry.getValue().score()).reversed())
@@ -245,6 +267,10 @@ public class RetrievalService {
         } catch (Exception ex) {
             log.warn("{}失败，已忽略: {}", action, ex.getMessage());
         }
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000L;
     }
 
     private enum ScoreSource {
