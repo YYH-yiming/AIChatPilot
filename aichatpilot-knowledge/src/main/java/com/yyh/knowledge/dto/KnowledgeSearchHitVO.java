@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class KnowledgeSearchHitVO {
     private Long chunkId;
+    private Long parentId;
     private Long docId;
     private Long kbId;
     private Integer chunkIndex;

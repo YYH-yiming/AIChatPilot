@@ -19,6 +19,8 @@ public class KnowledgeChunk {
     private Integer tokenCount;
     private Integer chunkIndex;
     private String vectorId;
+    private Long parentId;
+    private String chunkRole;
     private String metadata;
     private LocalDateTime createdAt;
 }

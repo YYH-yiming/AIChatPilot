@@ -103,6 +103,25 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
+    @Transactional
+    public DocumentUploadResponse reprocessDocument(Long kbId, Long docId) {
+        requireKnowledgeBase(kbId);
+        KnowledgeDocument document = requireDocument(kbId, docId);
+        // 重处理：重置状态避免 processUploadedDocument 因 parseStatus==2 跳过；原文件仍在 MinIO，
+        // processUploadedDocument 会重新解析→切分(按当前 flag/策略)→重灌索引，docId 不变（eval gold 不漂移）。
+        document.setParseStatus(asyncEnabled ? 0 : 1);
+        document.setErrorMsg(null);
+        knowledgeDocumentMapper.updateById(document);
+        if (asyncEnabled) {
+            publishDocumentEventAfterCommit(docId, kbId);
+        } else {
+            documentAsyncProcessService.processUploadedDocument(kbId, docId);
+            document = knowledgeDocumentMapper.selectById(docId);
+        }
+        return toDocumentResponse(document);
+    }
+
+    @Override
     public DocumentUploadResponse getDocument(Long kbId, Long docId) {
         requireKnowledgeBase(kbId);
         return toDocumentResponse(requireDocument(kbId, docId));

@@ -27,6 +27,13 @@ public class DocumentController {
         return Result.success(documentService.uploadDocument(kbId, file));
     }
 
+    @Operation(summary = "重处理文档（重新解析→切分→索引，docId 不变；用于换切分策略后重灌）")
+    @PostMapping("/{docId}/reprocess")
+    public Result<DocumentUploadResponse> reprocess(@PathVariable Long kbId,
+                                                    @PathVariable Long docId) {
+        return Result.success(documentService.reprocessDocument(kbId, docId));
+    }
+
     @Operation(summary = "查询知识库文档列表")
     @GetMapping
     public Result<List<DocumentUploadResponse>> list(@PathVariable Long kbId) {

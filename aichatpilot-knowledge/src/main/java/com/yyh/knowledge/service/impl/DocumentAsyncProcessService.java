@@ -11,11 +11,14 @@ import com.yyh.knowledge.mapper.KnowledgeBaseMapper;
 import com.yyh.knowledge.mapper.KnowledgeChunkMapper;
 import com.yyh.knowledge.mapper.KnowledgeDocumentMapper;
 import com.yyh.knowledge.minio.MinioService;
+import com.yyh.knowledge.parser.ParsedDocument;
+import com.yyh.knowledge.parser.StructuredDocumentParser;
 import com.yyh.knowledge.search.RetrievalService;
 import com.yyh.knowledge.service.ChunkService;
 import com.yyh.knowledge.service.DocumentParseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,11 @@ public class DocumentAsyncProcessService {
     private final FaqCacheService faqCacheService;
     private final DistributedLockService distributedLockService;
     private final KnowledgeReliabilityProperties reliabilityProperties;
+    private final StructuredDocumentParser structuredDocumentParser;
+    private final ParentChildChunkService parentChildChunkService;
+
+    @Value("${knowledge.chunk.parent-child.enabled:false}")
+    private boolean parentChildEnabled;
 
     @Transactional
     public void processUploadedDocument(Long kbId, Long docId) {
@@ -73,16 +81,30 @@ public class DocumentAsyncProcessService {
 
             retrievalService.deleteDocumentIndexes(kbId, docId);
 
-            String parsedText;
-            try (InputStream inputStream = minioService.getObjectByUrl(document.getFileUrl())) {
-                parsedText = documentParseService.parse(document.getFileName(), inputStream);
+            List<KnowledgeChunk> indexed;
+            if (parentChildEnabled) {
+                // 父子切分：结构化解析 → 父~1500/子~300 → 只把【子块】喂索引（父块只入库，命中后返回）
+                byte[] fileBytes;
+                try (InputStream inputStream = minioService.getObjectByUrl(document.getFileUrl())) {
+                    fileBytes = inputStream.readAllBytes();
+                }
+                ParsedDocument parsed = structuredDocumentParser.parse(document.getFileName(), fileBytes);
+                indexed = parentChildChunkService.splitAndSave(kbId, docId, parsed);
+            } else {
+                // flat 臂：与父子臂【同一套结构化解析】(StructuredDocumentParser/PDFBox)，仅切分层走平铺。
+                // 这样两臂"只差切分、解析一致"，对比才纯；同时绕开老 Tika 解析 PDF 在 Tabula 引入后
+                // 的 PDFBox 版本冲突(抛 Error 透出 500、且事务回滚前已删向量)。
+                byte[] fileBytes;
+                try (InputStream inputStream = minioService.getObjectByUrl(document.getFileUrl())) {
+                    fileBytes = inputStream.readAllBytes();
+                }
+                String parsedText = structuredDocumentParser.parse(document.getFileName(), fileBytes).toMarkdown();
+                indexed = chunkService.splitAndSave(kbId, docId, parsedText);
             }
-
-            List<KnowledgeChunk> chunks = chunkService.splitAndSave(kbId, docId, parsedText);
-            retrievalService.indexChunks(kbId, chunks);
+            retrievalService.indexChunks(kbId, indexed);
 
             document.setParseStatus(2);
-            document.setChunkCount(chunks.size());
+            document.setChunkCount(indexed.size());
             document.setErrorMsg(null);
             knowledgeDocumentMapper.updateById(document);
             refreshKnowledgeBaseStats(kbId);

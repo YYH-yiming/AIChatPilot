@@ -73,10 +73,13 @@ CREATE TABLE knowledge_chunk (
     token_count     INT          COMMENT 'Token数量',
     chunk_index     INT          COMMENT '在文档中的序号',
     vector_id       VARCHAR(100) COMMENT 'Milvus中的向量ID',
+    parent_id       BIGINT       NULL COMMENT '父块ID（父子切分：子块指向父块；父块/旧平铺块为NULL）',
+    chunk_role      VARCHAR(16)  NULL COMMENT '块角色：parent/child；NULL=旧平铺块',
     metadata        JSON         COMMENT '元数据（页码、标题等）',
     created_at      DATETIME     DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_doc (doc_id),
-    INDEX idx_kb (kb_id)
+    INDEX idx_kb (kb_id),
+    INDEX idx_parent (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识切片';
 
 -- ==================== 会话模块 ====================

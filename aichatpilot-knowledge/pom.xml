@@ -89,6 +89,35 @@
             <version>2.15.1</version>
         </dependency>
 
+        <!-- 文档解析 P1：CSV 结构化（带引号/转义的健壮解析）。PDFBox/POI 经 Tika 已在 classpath。 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.10.0</version>
+        </dependency>
+
+        <!-- 文档解析 P1b：Tabula 抽 PDF 内嵌表格（lattice 有线框 / stream 无线框）→ Markdown。
+             排除自带 PDFBox/FontBox，复用 Tika 的 PDFBox 2.x，避免双版本冲突；排除 slf4j-simple 防多绑定。 -->
+        <dependency>
+            <groupId>technology.tabula</groupId>
+            <artifactId>tabula</artifactId>
+            <version>1.0.5</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.pdfbox</groupId>
+                    <artifactId>pdfbox</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.pdfbox</groupId>
+                    <artifactId>fontbox</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- LangChain4j：LLM 流式客户端（P1 迁移，编译作用域）。版本由父 BOM langchain4j-bom 管理（1.16.1）。
              用于 LlmService.chatStream 的 langchain4j 实现（LLM_STREAM_IMPL=langchain4j 时启用）；jdk 实现保留可回退。 -->
         <dependency>

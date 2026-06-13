@@ -91,6 +91,18 @@ knowledge:
     strategy: ${KNOWLEDGE_CHUNK_STRATEGY:fixed}
     size: ${KNOWLEDGE_CHUNK_SIZE:1000}
     overlap: ${KNOWLEDGE_CHUNK_OVERLAP:100}
+    parent-child:
+      enabled: ${KNOWLEDGE_CHUNK_PARENT_CHILD_ENABLED:false}
+      parent-size: ${KNOWLEDGE_CHUNK_PARENT_SIZE:1500}
+      child-size: ${KNOWLEDGE_CHUNK_CHILD_SIZE:300}
+      child-overlap: ${KNOWLEDGE_CHUNK_CHILD_OVERLAP:50}
+      child-heading-mode: ${KNOWLEDGE_CHUNK_CHILD_HEADING_MODE:leaf}
+      child-recall-multiplier: ${KNOWLEDGE_CHUNK_CHILD_RECALL_MULTIPLIER:5}
+    semantic:
+      std-multiplier: ${KNOWLEDGE_CHUNK_SEMANTIC_STD_MULTIPLIER:1.0}
+  parse:
+    pdf:
+      extract-tables: ${KNOWLEDGE_PARSE_PDF_EXTRACT_TABLES:true}
   async:
     enabled: ${KNOWLEDGE_ASYNC_ENABLED:true}
     document-upload-topic: ${KAFKA_TOPIC_DOCUMENT_UPLOAD:knowledge.document.upload}
