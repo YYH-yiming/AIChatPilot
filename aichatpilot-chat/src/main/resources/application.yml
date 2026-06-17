@@ -33,6 +33,11 @@ spring:
     init:
       mode: ${CHAT_SQL_INIT_MODE:always}
       schema-locations: classpath:db/chat-schema.sql
+  servlet:
+    multipart:
+      # 多模态输入(语音/图片)上传：默认仅 1MB，音频/图片必爆，显式放宽。
+      max-file-size: ${CHAT_MULTIPART_MAX_FILE_SIZE:25MB}
+      max-request-size: ${CHAT_MULTIPART_MAX_REQUEST_SIZE:25MB}
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
@@ -70,6 +75,23 @@ chat:
     openai-compatible: ${CHAT_LLM_OPENAI_COMPATIBLE:${LLM_OPENAI_COMPATIBLE:true}}
     temperature: ${CHAT_LLM_TEMPERATURE:${LLM_TEMPERATURE:0.2}}
     max-tokens: ${CHAT_LLM_MAX_TOKENS:${LLM_MAX_TOKENS:1024}}
+  media:
+    # 多模态输入。各模态独立开关(默认关，出问题瞬时回退)；ASR/VLM 走 SiliconFlow，key 默认复用 LLM_API_KEY。
+    asr:
+      enabled: ${MEDIA_ASR_ENABLED:false}
+      api-url: ${MEDIA_ASR_API_URL:https://api.siliconflow.cn/v1/audio/transcriptions}
+      api-key: ${MEDIA_ASR_API_KEY:${LLM_API_KEY:}}
+      model: ${MEDIA_ASR_MODEL:FunAudioLLM/SenseVoiceSmall}
+      timeout-seconds: ${MEDIA_ASR_TIMEOUT_SECONDS:30}
+      max-bytes: ${MEDIA_ASR_MAX_BYTES:26214400}
+    vlm:
+      enabled: ${MEDIA_VLM_ENABLED:false}
+      api-url: ${MEDIA_VLM_API_URL:https://api.siliconflow.cn/v1/chat/completions}
+      api-key: ${MEDIA_VLM_API_KEY:${LLM_API_KEY:}}
+      model: ${MEDIA_VLM_MODEL:deepseek-ai/DeepSeek-OCR}
+      timeout-seconds: ${MEDIA_VLM_TIMEOUT_SECONDS:120}
+      max-tokens: ${MEDIA_VLM_MAX_TOKENS:1024}
+      max-bytes: ${MEDIA_VLM_MAX_BYTES:10485760}
 
 logging:
   level:

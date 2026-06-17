@@ -153,6 +153,70 @@ CREATE TABLE agent_trace (
     INDEX idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Agent调用日志';
 
+-- ==================== Text2SQL 结构化业务表 ====================
+-- 为 NL→SQL 提供可精确查询的产品/价格数据（聚合/筛选/对比/计数）。
+-- 种子数据见 docker/mysql/migration/2026-06-13_text2sql_business_tables.sql。
+-- 数值列 NULL=不限/自定义；audit_log_retention_days/max_dialog_turns 取 0=不支持；布尔列 1=支持(含可选) 0=不支持。
+
+CREATE TABLE biz_product_plan (
+    id                         BIGINT PRIMARY KEY AUTO_INCREMENT,
+    product                    VARCHAR(50)  NOT NULL COMMENT '产品线，如 云策·智答',
+    plan_name                  VARCHAR(50)  NOT NULL COMMENT '版本名：基础版/专业版/企业版/旗舰版',
+    plan_level                 TINYINT      NOT NULL COMMENT '版本档位：1基础 2专业 3企业 4旗舰',
+    billing                    VARCHAR(20)  COMMENT '计费方式：年付/年付起',
+    annual_price               INT          COMMENT '年付价格(元)',
+    kb_count                   INT          COMMENT '知识库数量(个)；NULL=不限',
+    doc_limit_per_kb           INT          COMMENT '单知识库文档数上限(篇)；NULL=不限',
+    seat_count                 INT          COMMENT '起始坐席数(个)；NULL=不限',
+    monthly_api_calls          INT          COMMENT '月API调用量(次)；NULL=自定义',
+    max_qps                    INT          COMMENT 'QPS峰值(次/秒)；NULL=自定义',
+    max_concurrent_sessions    INT          COMMENT '并发会话数(个)；NULL=自定义',
+    monthly_qa_limit           INT          COMMENT '月问答量上限(次)；NULL=自定义',
+    history_retention_days     INT          COMMENT '对话历史留存(天)；NULL=自定义',
+    audit_log_retention_days   INT          COMMENT '审计日志留存(天)；0=不支持，NULL=自定义',
+    max_dialog_turns           INT          COMMENT '多轮对话最大轮次；0=不支持，NULL=自定义',
+    recall_top_k               INT          COMMENT '单次检索召回片段数(个)；NULL=自定义',
+    language_count             INT          COMMENT '多语言支持(种)；NULL=自定义',
+    sub_account_count          INT          COMMENT '子账号数(个)；NULL=不限',
+    model_options              INT          COMMENT '可选模型数(个)；NULL=自定义',
+    storage_gb                 INT          COMMENT '知识库总存储(GB)；NULL=自定义',
+    sla_availability           DECIMAL(5,2) COMMENT '可用性SLA(%)',
+    rto_hours                  DECIMAL(4,1) COMMENT '故障恢复目标RTO(小时)',
+    rpo_hours                  DECIMAL(4,1) COMMENT '数据恢复目标RPO(小时)',
+    ticket_priority            VARCHAR(4)   COMMENT '工单优先级响应：P1/P2/P3',
+    has_rerank                 TINYINT      DEFAULT 0 COMMENT '精排重排(rerank)',
+    has_multi_turn             TINYINT      DEFAULT 0 COMMENT '多轮对话与上下文改写',
+    has_intent_routing         TINYINT      DEFAULT 0 COMMENT '智能意图路由',
+    has_multi_agent            TINYINT      DEFAULT 0 COMMENT '多Agent协同编排',
+    has_ticket_link            TINYINT      DEFAULT 0 COMMENT '工单联动(转工单)',
+    has_sso                    TINYINT      DEFAULT 0 COMMENT '单点登录(SSO)',
+    has_open_api               TINYINT      DEFAULT 0 COMMENT '开放API',
+    has_webhook                TINYINT      DEFAULT 0 COMMENT 'Webhook与回调',
+    has_multilang              TINYINT      DEFAULT 0 COMMENT '多语言问答',
+    has_private_deploy         TINYINT      DEFAULT 0 COMMENT '私有化/混合部署（可选计为支持）',
+    has_custom_dev             TINYINT      DEFAULT 0 COMMENT '定制开发',
+    has_ab_test                TINYINT      DEFAULT 0 COMMENT '灰度发布与AB测试',
+    has_24x7_hotline           TINYINT      DEFAULT 0 COMMENT '7x24客服热线',
+    has_dedicated_csm          TINYINT      DEFAULT 0 COMMENT '专属客户成功经理（可选计为支持）',
+    has_data_export            TINYINT      DEFAULT 0 COMMENT '数据导出',
+    included_summary           VARCHAR(255) COMMENT '价格表"说明"列：版本含量摘要',
+    UNIQUE KEY uk_product_plan (product, plan_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='产品套餐宽表（智答版本对比/规格，Text2SQL用）';
+
+CREATE TABLE biz_price_item (
+    id               BIGINT PRIMARY KEY AUTO_INCREMENT,
+    category         VARCHAR(30)  NOT NULL COMMENT '分类：产品/坐席扩展/增值服务/私有化/培训/优惠/试用',
+    item_name        VARCHAR(100) NOT NULL COMMENT '项目/服务名称',
+    billing_mode     VARCHAR(30)  COMMENT '计费方式：年付/一次性/按量/按年结算/赠送/免费',
+    unit             VARCHAR(30)  COMMENT '计费单位',
+    unit_price       DECIMAL(12,2) COMMENT '单价(元)；NULL=非数值价格（见 price_text）',
+    price_text       VARCHAR(50)  COMMENT '非数值价格原文，如 基础订阅20% / 8.5折',
+    min_order        INT          COMMENT '起订量；NULL=不适用',
+    applicable_plan  VARCHAR(30)  COMMENT '适用版本：全部/专业版及以上/企业版及以上/企业版可选/旗舰版',
+    note             VARCHAR(255) COMMENT '备注/说明',
+    INDEX idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='价格与增值服务目录（Text2SQL用）';
+
 -- ==================== 初始数据 ====================
 
 -- 插入默认租户

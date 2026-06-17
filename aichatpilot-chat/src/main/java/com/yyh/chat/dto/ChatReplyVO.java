@@ -22,6 +22,8 @@ public class ChatReplyVO {
     private Integer referenceCount;
     private Integer tokenUsed;
     private Long durationMs;
+    /** 多模态输入：语音转写 / 图片识别得到的文本（旧文本路径为 null）。 */
+    private String recognizedText;
     private List<String> toolsCalled = new ArrayList<>();
     private List<ChatReferenceVO> references = new ArrayList<>();
 }
